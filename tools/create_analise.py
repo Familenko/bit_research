@@ -27,6 +27,8 @@ def paint_result(df,
     
     last_days = max(last_days, 100)
 
+    if 'BTCUSDT' not in result:
+        result.append('BTCUSDT')
     num_symbols = len(result)
     fig, axes = plt.subplots(nrows=num_symbols, ncols=1, figsize=(16, 6 * num_symbols), sharex=False)
 
