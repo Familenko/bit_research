@@ -21,7 +21,7 @@ def paint_result(df,
                  df_open, 
                  df_max, 
                  df_min,
-                 last_days=365):
+                 last_days=180):
     
     collect_predict = pd.DataFrame()
     
@@ -60,6 +60,11 @@ def paint_result(df,
         global_scaled = global_line * (series.max() - series.min()) + series.min()
         global_scaled.plot(ax=ax, label='Global Mean', color='black', linestyle='dotted', linewidth=0.5)
 
+        # ==== 200-денна ковзна ====
+        ma200_full = df[symbol].rolling(window=200).mean()
+        ma200 = ma200_full.iloc[-last_days:]
+        ma200.plot(ax=ax, color='purple', linestyle='-', linewidth=1.2, label='MA 200')
+
         # ==== 100-денна ковзна ====
         ma100_full = df[symbol].rolling(window=100).mean()
         ma100 = ma100_full.iloc[-last_days:]
@@ -82,9 +87,6 @@ def paint_result(df,
         max_historical = info_df.loc[symbol, 'Max Historical']
 
         # ==== Розрахунок TP та SL ====
-        TP = (max_resist_100 + max_resist_30) / 2
-        profit_pct = ((TP - last_price) / last_price) * 100
-
         atr_series = ta.volatility.AverageTrueRange(
             high=df_max[symbol],
             low=df_min[symbol],
@@ -93,6 +95,8 @@ def paint_result(df,
         ).average_true_range()
         last_atr = atr_series.dropna().iloc[-1]
         SL = last_price - last_atr * 2.5
+        TP = last_price + last_atr * 2.5
+        profit_pct = ((TP - last_price) / last_price) * 100
 
         # ==== Фарбування ділянок підтримки та опору ====
         ax.axhspan(min_support_100, max_resist_100, color='lightgreen', alpha=0.1)
