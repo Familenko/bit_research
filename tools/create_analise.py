@@ -326,18 +326,18 @@ def paint_result(df,
                      f"RSI: {last_rsi:.1f} ATR: {last_atr:.2f} | Trend: {direction} Signal: {signal_text}", fontsize=14)
         
         collect_predict[symbol] = pd.Series({
-            'cap': symbol_cap,
+            'cap': float(symbol_cap),
             f'{TODAY}': last_price,
-            'profit_pct': profit_pct,
-            'SL': SL,
-            'TP': TP,
+            'profit_pct': float(profit_pct),
+            'SL': float(SL),
+            'TP': float(TP),
             'direction': direction,
             'signal_text': signal_text,
             'last_rsi': last_rsi,
             'last_atr': last_atr,
             'votes_up': votes_up,
             'votes_down': votes_down,
-            'total_votes': total_votes
+            'total_votes': int(total_votes)
         })
 
         # ==== Налаштування графіка ====
