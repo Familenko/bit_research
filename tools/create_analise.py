@@ -130,7 +130,7 @@ def paint_result(df,
         # ==== Найбільший обʼєм за останні 100 днів ====
         vol_max_idx_100 = volume_series[-100:].idxmax()
         vol_mean_100 = volume_series[-100:].mean()
-        if volume_series[vol_max_idx_100] > vol_mean_100 * 3:
+        if volume_series[vol_max_idx_100] > vol_mean_100 * 2:
             price_at_vol_max_100 = series.loc[vol_max_idx_100]
             pos_100 = series.index.get_loc(vol_max_idx_100)
 
@@ -140,7 +140,7 @@ def paint_result(df,
         # ==== Найбільший обʼєм за останні 30 днів ====
         vol_max_idx_30 = volume_series[-30:].idxmax()
         vol_mean_30 = volume_series[-30:].mean()
-        if volume_series[vol_max_idx_30] > vol_mean_30 * 3:
+        if volume_series[vol_max_idx_30] > vol_mean_30 * 2:
             price_at_vol_max_30 = series.loc[vol_max_idx_30]
             pos_30 = series.index.get_loc(vol_max_idx_30)
 
@@ -156,12 +156,8 @@ def paint_result(df,
             ax.axvline(pos_100, color='gray', linestyle=':', label='100 Days Ago')
 
         # ==== Накладання обʼєму ====
-        ax.set_title(f"{symbol} ({symbol_cap:.2f}B USD) — Potential Profit: {profit_pct:.2f}% (SL: {SL:.2f}, TP: {TP:.2f})", fontsize=14)
-        ax.legend(loc='upper left', fontsize=10)
-        ax.grid(True, linestyle='--', alpha=0.5)
-
-        lower_limit = min_support_100 * 0.9
-        upper_limit = max_resist_100 * 1.1
+        lower_limit = min_support_100 * 0.8
+        upper_limit = max_resist_100 * 1.2
         ax.set_ylim(lower_limit, upper_limit)
         vol_scaled = volume_series / volume_series.max() * (upper_limit - lower_limit) * 0.2 + lower_limit
         ax.fill_between(vol_scaled.index, vol_scaled, color='gray', alpha=0.3, label='Volume (scaled)')
@@ -343,15 +339,8 @@ def paint_result(df,
         })
 
         # ==== Налаштування графіка ====
-        ax.set_xlabel('Date', fontsize=12)
         ax.legend(loc='upper left', fontsize=10)
         ax.grid(True, linestyle='--', alpha=0.5)
-
-        lower_limit = min_support_100 * 0.9
-        upper_limit = max_resist_100 * 1.1
-        ax.set_ylim(lower_limit, upper_limit)
-        vol_scaled = volume_series / volume_series.max() * (upper_limit - lower_limit) * 0.2 + lower_limit
-        ax.fill_between(vol_scaled.index, vol_scaled, color='gray', alpha=0.3, label='Volume (scaled)')
 
     plt.tight_layout()
     plt.savefig(f'pdf_store/{TODAY}.pdf', dpi=300, bbox_inches='tight')
