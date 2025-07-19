@@ -10,37 +10,37 @@ from tqdm import tqdm
 import ta
 
 
-def find_optimal_parameters(df, symbol_list=None, 
+def find_optimal_parameters(df_close, symbol_list=None, 
                             min_last_days=90, max_last_days=180, step_day=10,
                             min_procent=0.01, max_procent=0.3, step_procent=0.01,
                             min_std_procent=0.01, max_std_procent=0.3, step_std=0.01):
     results = {}
 
     if symbol_list is None:
-        symbol_list = df.columns.tolist()
+        symbol_list = df_close.columns.tolist()
 
     for symbol in tqdm(symbol_list, desc='Processing Symbols'):
         optimal_procent = max_procent
         optimal_last_days = min_last_days
         optimal_std_procent = max_std_procent
 
-        last_price = df[symbol].iloc[-1]
+        last_price = df_close[symbol].iloc[-1]
 
         for last_days in range(min_last_days, max_last_days + 1, step_day):
-            df_slice = df[symbol].iloc[-last_days:]
+            df_slice = df_close[symbol].iloc[-last_days:]
             mean_val = df_slice.mean()
-            df_warning_100 = df[symbol].iloc[-101:-1]
-            df_warning_30 = df[symbol].iloc[-31:-1]
+            df_warning_100 = df_close[symbol].iloc[-101:-1]
+            df_warning_30 = df_close[symbol].iloc[-31:-1]
 
             for std_procent in np.arange(max_std_procent, min_std_procent, -step_std):
                 std_n = mean_val * std_procent
 
                 for procent in np.arange(max_procent, min_procent, -step_procent):
-                    min_historical = df[symbol].iloc[:-31].min()
+                    min_historical = df_close[symbol].iloc[:-31].min()
                     min_historical_coeff = min_historical * (procent + 1.0)
                     min_support_100 = df_warning_100.min()
                     min_support_30 = df_warning_30.min()
-                    max_historical = df[symbol].iloc[:-31].max()
+                    max_historical = df_close[symbol].iloc[:-31].max()
                     max_resist_100 = df_warning_100.max()
                     max_resist_30 = df_warning_30.max()
                     mean_100 = df_warning_100.mean()
