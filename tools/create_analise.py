@@ -58,6 +58,8 @@ def paint_result(df,
         ideal_line = time_norm
         diff = cum_vol_norm.values - ideal_line
         interes = np.trapezoid(diff, time_norm) * -1
+        if interes is None or np.isnan(interes):
+            interes = 0.0
 
         ax_vol = ax.twinx()
         cum_vol.plot(ax=ax_vol, color='gray', linestyle='-', linewidth=0.5, label=f'Cumulative Volume ({interes:.2f})')
@@ -294,7 +296,7 @@ def paint_result(df,
                         label='Engulfing Bearish' if 'Engulfing Bearish' not in ax.get_legend_handles_labels()[1] else "")
 
         # ==== Визначення підсумкового напрямку з балами ====
-        total_votes = int(abs(votes_up - votes_down) - votes_neutral)
+        total_votes = int(abs(votes_up - votes_down) - votes_neutral + (interes * 100))
         scores = f"{total_votes} (U:{votes_up:.1f} D:{votes_down:.1f})"
         if votes_up > votes_down and total_votes > 0:
             direction = f"⬆️ Up {scores}"
