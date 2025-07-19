@@ -20,29 +20,40 @@ class SymbolAnalyzer:
     def __init__(self, df, cap_df):
         self.TODAY = date.today().strftime('%Y-%m-%d')
         self.ignore_symbols = ['USDCUSDT', 'FDUSDUSDT', 'USD1USDT']
-        self.cap_df = cap_df
 
-        self.volume_df = df.pivot(index='timestamp', columns='symbol', values='volume')
-        self.df_open = df.pivot(index='timestamp', columns='symbol', values='open')
-        self.df_close = df.pivot(index='timestamp', columns='symbol', values='close')
-        self.df_high = df.pivot(index='timestamp', columns='symbol', values='high')
-        self.df_low = df.pivot(index='timestamp', columns='symbol', values='low')
+        self.res = {}
 
-        self.optimal_df = None
-        self.analyze_df = None
+        self.data = {}
+        self.data['capital'] = cap_df
+        self.data['volume'] = df.pivot(index='timestamp', columns='symbol', values='volume')
+        self.data['open'] = df.pivot(index='timestamp', columns='symbol', values='open')
+        self.data['close'] = df.pivot(index='timestamp', columns='symbol', values='close')
+        self.data['high'] = df.pivot(index='timestamp', columns='symbol', values='high')
+        self.data['low'] = df.pivot(index='timestamp', columns='symbol', values='low')
+
         self.result_df = None
 
     def run(self, **kwargs):
         self.find_optimal_parameters(**kwargs)
         self.analyze(last_days=kwargs.get("last_days", 180))
 
-        self.result_df = self.analyze_df.merge(self.optimal_df, left_index=True, right_index=True).reset_index()
-        self.result_df = self.result_df[~self.result_df['index'].isin(self.ignore_symbols)]
+        # self.result_df = self.analyze_df.merge(self.optimal_df, left_index=True, right_index=True).reset_index()
+        # self.result_df = self.result_df[~self.result_df['index'].isin(self.ignore_symbols)]
 
+        # self.result_df.rename(columns={'index': 'symbol'}, inplace=True)
+        # self.result_df = self.result_df.sort_values(['total_votes', 'cap',
+        #                                              'Optimal Procent', 'Optimal Last Days', 'Optimal Std Procent'], 
+        #                                              ascending=[False, False, True, False, False])
+        # return self.result_df
+
+        self.result_df = pd.DataFrame.from_dict(self.res, orient='index')
+        self.result_df.reset_index(inplace=True)
         self.result_df.rename(columns={'index': 'symbol'}, inplace=True)
+        self.result_df = self.result_df[~self.result_df['symbol'].isin(self.ignore_symbols)]
         self.result_df = self.result_df.sort_values(['total_votes', 'cap',
-                                                     'Optimal Procent', 'Optimal Last Days', 'Optimal Std Procent'], 
+                                                     'max_procent', 'min_last_days', 'max_std_procent'], 
                                                      ascending=[False, False, True, False, False])
+        
         return self.result_df
 
     def find_optimal_parameters(self, symbol_list=None,
@@ -50,62 +61,68 @@ class SymbolAnalyzer:
                                 min_procent=0.0, max_procent=0.5, step_procent=0.05,
                                 min_std_procent=0.0, max_std_procent=0.3, step_std=0.05):
 
-        df_close = self.df_close
-        optimal_dict = {}
+        df_close = self.data['close']
 
         if symbol_list is None:
             symbol_list = df_close.columns.tolist()
 
         for symbol in tqdm(symbol_list, desc='Optimizing'):
-            optimal = self._optimize_symbol(
-                symbol, min_last_days, max_last_days, step_day,
+            max_procent_found, min_last_days_found, max_std_procent_found = self._optimize_symbol(
+                symbol, 
+                min_last_days, max_last_days, step_day,
                 min_procent, max_procent, step_procent,
                 min_std_procent, max_std_procent, step_std
             )
 
             if symbol != 'BTCUSDT':
-                if (optimal[0] == max_procent and
-                    optimal[1] == min_last_days and
-                    optimal[2] == max_std_procent):
+                if (max_procent_found == max_procent and
+                    min_last_days_found == min_last_days and
+                    max_std_procent_found == max_std_procent):
                     continue
 
-            df = df_close[symbol]
-            df_warning_100 = df.iloc[-101:-1]
-            df_warning_30 = df.iloc[-31:-1]
-            optimal_dict[symbol] = (
-                *optimal,
-                df_warning_100.min(), df_warning_30.min(), df.iloc[:-31].min(),
-                df.iloc[:-31].max(), df_warning_100.max(), df_warning_30.max(),
-                df.iloc[-1], df_warning_100.mean(), df_warning_30.mean()
-            )
+            min_support_100 = df_close[symbol].iloc[-101:-1].min()
+            max_resist_100 = df_close[symbol].iloc[-101:-1].max()
+            min_support_30 = df_close[symbol].iloc[-31:-1].min()
+            max_resist_30 = df_close[symbol].iloc[-31:-1].max()
+            min_historical = df_close[symbol].iloc[:-31].min()
+            max_historical = df_close[symbol].iloc[:-31].max()
+            last_price = df_close[symbol].iloc[-1]
+            mean_100 = df_close[symbol].iloc[-101:-1].mean()
+            mean_30 = df_close[symbol].iloc[-31:-1].mean()
 
-        self.optimal_df = pd.DataFrame(optimal_dict).T
-        self.optimal_df.columns = [
-            'Optimal Procent', 'Optimal Last Days', 'Optimal Std Procent',
-            'Min Support 100', 'Min Support 30', 'Min Historical',
-            'Max Historical', 'Max Resist 100', 'Max Resist 30',
-            'Last Price', 'Mean 100', 'Mean 30'
-        ]
-        self.optimal_df.sort_values(by=['Optimal Procent', 'Optimal Last Days', 'Optimal Std Procent'],
-                                    ascending=[True, False, False], inplace=True)
+            self.res[symbol] = {
+                'max_procent': max_procent_found,
+                'min_last_days': min_last_days_found,
+                'max_std_procent': max_std_procent_found,
+                'min_support_100': min_support_100,
+                'max_resist_100': max_resist_100,
+                'min_support_30': min_support_30,
+                'max_resist_30': max_resist_30,
+                'min_historical': min_historical,
+                'max_historical': max_historical,
+                'last_price': last_price,
+                'mean_100': mean_100,
+                'mean_30': mean_30
+            }
 
     def _optimize_symbol(self, symbol, min_last_days, max_last_days, step_day,
                          min_procent, max_procent, step_procent,
                          min_std_procent, max_std_procent, step_std):
-        df = self.df_close[symbol]
-        last_price = df.iloc[-1]
+        
+        df_close = self.data['close'][symbol]
+        last_price = df_close.iloc[-1]
         optimal = (max_procent, min_last_days, max_std_procent)
 
         for last_days in range(min_last_days, max_last_days + 1, step_day):
-            df_slice = df.iloc[-last_days:]
+            df_slice = df_close.iloc[-last_days:]
             mean_val = df_slice.mean()
-            df_warning_30 = df.iloc[-31:-1]
+            df_warning_30 = df_close.iloc[-31:-1]
 
             for std_procent in np.arange(max_std_procent, min_std_procent, -step_std):
                 std_n = mean_val * std_procent
 
                 for procent in np.arange(max_procent, min_procent, -step_procent):
-                    min_hist = df.iloc[:-31].min()
+                    min_hist = df_close.iloc[:-31].min()
                     min_hist_coeff = min_hist * (procent + 1.0)
                     min_supp_30 = df_warning_30.min()
 
@@ -114,61 +131,60 @@ class SymbolAnalyzer:
                             (procent == optimal[0] and last_days > optimal[1]) or
                             (procent == optimal[0] and last_days == optimal[1] and std_procent < optimal[2])):
                             optimal = (procent, last_days, std_procent)
+
         return optimal
 
     def analyze(self, last_days=180):
-        assert self.optimal_df is not None, "Спочатку викличте find_optimal_parameters()"
-        analyze_df = {}
+        assert self.res is not None, "Спочатку викличте find_optimal_parameters()"
 
-        for symbol in tqdm(self.optimal_df.index.tolist(), desc='Analyzing'):
-            analyze_df[symbol] = self._analyze_symbol(symbol, last_days)
+        for symbol in tqdm(self.res.keys(), desc='Analyzing'):
 
-        self.analyze_df = pd.DataFrame(analyze_df).T
+            volume_series = self.data['volume'][symbol].iloc[-last_days:]
+            interes = self._calculate_interest(volume_series)
 
-    def _analyze_symbol(self, symbol, last_days):
-        volume_series = self.volume_df[symbol].iloc[-last_days:]
-        interes = self._calculate_interest(volume_series)
-        last_rsi = ta.momentum.RSIIndicator(close=self.df_close[symbol], window=30).rsi().iloc[-last_days:].dropna().iloc[-1]
+            last_rsi = ta.momentum.RSIIndicator(close=self.data['close'][symbol], window=30).rsi().iloc[-last_days:].dropna().iloc[-1]
 
-        ma100 = self.df_close[symbol].rolling(window=100).mean().iloc[-last_days:]
-        ma30 = self.df_close[symbol].rolling(window=30).mean().iloc[-last_days:]
+            last_price = self.res[symbol]['last_price']
+            atr_series = ta.volatility.AverageTrueRange(
+                high=self.data['high'][symbol],
+                low=self.data['low'][symbol],
+                close=self.data['close'][symbol],
+                window=30
+            ).average_true_range()
+            last_atr = atr_series.dropna().iloc[-1]
+            SL = last_price - last_atr * 2.5
+            TP = last_price + last_atr * 2.5
+            profit_pct = ((TP - last_price) / last_price) * 100
 
-        opt = self.optimal_df.loc[symbol]
-        last_price = opt['Last Price']
-        cap = self.cap_df[self.cap_df['symbol'] == symbol]['cap'].values[0] / 1_000_000_000
+            votes_up, votes_down, votes_neutral = self._candle_votes(symbol, last_days)
+            total_votes = int(abs(votes_up - votes_down) - votes_neutral + (interes * 100))
 
-        atr_series = ta.volatility.AverageTrueRange(
-            high=self.df_high[symbol],
-            low=self.df_low[symbol],
-            close=self.df_close[symbol],
-            window=30
-        ).average_true_range()
-        last_atr = atr_series.dropna().iloc[-1]
-        SL = last_price - last_atr * 2.5
-        TP = last_price + last_atr * 2.5
-        profit_pct = ((TP - last_price) / last_price) * 100
+            ma100 = self.data['close'][symbol].rolling(window=100).mean().iloc[-last_days:]
+            ma30 = self.data['close'][symbol].rolling(window=30).mean().iloc[-last_days:]
+            max_resist_100 = self.res[symbol]['max_resist_100']
+            min_support_100 = self.res[symbol]['min_support_100']
 
-        votes_up, votes_down, votes_neutral = self._candle_votes(symbol, last_days)
-        total_votes = int(abs(votes_up - votes_down) - votes_neutral + (interes * 100))
+            direction = self._determine_direction(votes_up, votes_down, votes_neutral, total_votes)
+            signal_text = self._generate_signal(votes_up, votes_down, total_votes, ma30, ma100, last_rsi, last_price,
+                                                max_resist_100, min_support_100, volume_series)
 
-        direction = self._determine_direction(votes_up, votes_down, votes_neutral, total_votes)
-        signal_text = self._generate_signal(votes_up, votes_down, total_votes, ma30, ma100, last_rsi, last_price,
-                                            opt['Max Resist 100'], opt['Min Support 100'], volume_series)
+            cap = self.data['capital'][self.data['capital']['symbol'] == symbol]['cap'].values[0] / 1_000_000_000
 
-        return pd.Series({
-            'date': self.TODAY,
-            'cap': float(cap),
-            'profit_pct': float(profit_pct),
-            'SL': float(SL),
-            'TP': float(TP),
-            'direction': direction,
-            'votes_up': votes_up,
-            'votes_down': votes_down,
-            'total_votes': total_votes,
-            'signal_text': signal_text,
-            'last_rsi': last_rsi,
-            'last_atr': last_atr
-        })
+            self.res[symbol].update({
+                'date': self.TODAY,
+                'cap': float(cap),
+                'profit_pct': float(profit_pct),
+                'SL': float(SL),
+                'TP': float(TP),
+                'direction': direction,
+                'votes_up': votes_up,
+                'votes_down': votes_down,
+                'total_votes': total_votes,
+                'signal_text': signal_text,
+                'last_rsi': last_rsi,
+                'last_atr': last_atr,
+                'interes': interes
+            })
 
     def _calculate_interest(self, volume_series):
         cum_vol = volume_series.cumsum()
@@ -210,11 +226,11 @@ class SymbolAnalyzer:
         return "HOLD"
 
     def _candle_votes(self, symbol, last_days):
-        open_series = self.df_open[symbol].iloc[-last_days:]
-        high_series = self.df_high[symbol].iloc[-last_days:]
-        low_series = self.df_low[symbol].iloc[-last_days:]
-        close_series = self.df_close[symbol].iloc[-last_days:]
-        volume_series = self.volume_df[symbol].iloc[-last_days:]
+        open_series = self.data['open'][symbol].iloc[-last_days:]
+        high_series = self.data['high'][symbol].iloc[-last_days:]
+        low_series = self.data['low'][symbol].iloc[-last_days:]
+        close_series = self.data['close'][symbol].iloc[-last_days:]
+        volume_series = self.data['volume'][symbol].iloc[-last_days:]
 
         dates = close_series.index[-100:]
         vol_mean = volume_series[-100:].mean()
@@ -306,14 +322,14 @@ class SymbolAnalyzer:
 
         global_norm = pd.DataFrame()
         for symbol in self.result_df['symbol']:
-            series = self.df_close[symbol].iloc[-last_days:]
+            series = self.data['close'][symbol].iloc[-last_days:]
             norm_series = (series - series.min()) / (series.max() - series.min())
             global_norm[symbol] = norm_series
         global_line = global_norm.mean(axis=1)
 
         for idx, symbol in enumerate(self.result_df['symbol']):
-            series = self.df_close[symbol].iloc[-last_days:]
-            volume_series = self.volume_df[symbol].iloc[-last_days:]
+            series = self.data['close'][symbol].iloc[-last_days:]
+            volume_series = self.data['volume'][symbol].iloc[-last_days:]
             ax = axes[idx]
 
             # ==== Графік інтересу ====
@@ -340,12 +356,12 @@ class SymbolAnalyzer:
             global_scaled.plot(ax=ax, label='Global Mean', color='black', linestyle='--', linewidth=0.5)
 
             # ==== 200-денна ковзна ====
-            ma200_full = self.df_close[symbol].rolling(window=200).mean()
+            ma200_full = self.data['close'][symbol].rolling(window=200).mean()
             ma200 = ma200_full.iloc[-last_days:]
             ma200.plot(ax=ax, color='purple', linestyle='-', linewidth=1.2, label='MA 200')
 
             # ==== 100-денна ковзна ====
-            ma100_full = self.df_close[symbol].rolling(window=100).mean()
+            ma100_full = self.data['close'][symbol].rolling(window=100).mean()
             ma100 = ma100_full.iloc[-last_days:]
             ma100.plot(ax=ax, color='blue', linestyle='-', linewidth=1.2, label='MA 100')
 
@@ -353,18 +369,18 @@ class SymbolAnalyzer:
             ma100_global.plot(ax=ax, color='blue', linestyle='--', linewidth=0.5, label='Global MA 100')
 
             # ==== 30-денна ковзна ====
-            ma30_full = self.df_close[symbol].rolling(window=30).mean()
+            ma30_full = self.data['close'][symbol].rolling(window=30).mean()
             ma30 = ma30_full.iloc[-last_days:]
             ma30.plot(ax=ax, color='orange', linestyle='-', linewidth=1.2, label='MA 30')
 
             # ==== Лінії підтримки та опору ====
             symbol_cap = self.result_df.loc[self.result_df['symbol'] == symbol, 'cap'].values[0]
-            min_support_100 = self.optimal_df.loc[symbol, 'Min Support 100']
-            max_resist_100 = self.optimal_df.loc[symbol, 'Max Resist 100']
-            min_support_30 = self.optimal_df.loc[symbol, 'Min Support 30']
-            max_resist_30 = self.optimal_df.loc[symbol, 'Max Resist 30']
-            last_price = self.optimal_df.loc[symbol, 'Last Price']
-            max_historical = self.optimal_df.loc[symbol, 'Max Historical']
+            min_support_100 = self.res[symbol]['min_support_100']
+            max_resist_100 = self.res[symbol]['max_resist_100']
+            min_support_30 = self.res[symbol]['min_support_30']
+            max_resist_30 = self.res[symbol]['max_resist_30']
+            last_price = self.res[symbol]['last_price']
+            max_historical = self.res[symbol]['max_historical']
 
             # ==== Розрахунок TP та SL ====
             SL = self.result_df.loc[self.result_df['symbol'] == symbol, 'SL'].values[0]
@@ -390,8 +406,8 @@ class SymbolAnalyzer:
             ax.axhline(max_resist_30, color='gray', linestyle='dotted',
                     label=f"Max Resist 30 ({max_resist_30:.2f})")
 
-            ax.axhline(self.optimal_df.loc[symbol, 'Min Historical'], color='red', linestyle='--',
-                       label=f"Min Historical ({self.optimal_df.loc[symbol, 'Min Historical']:.2f})")
+            ax.axhline(self.res[symbol]['min_historical'], color='red', linestyle='--',
+                       label=f"Min Historical ({self.res[symbol]['min_historical']:.2f})")
             ax.axhline(max_historical, color='red', linestyle='--',
                        label=f"Max Historical ({max_historical:.2f})")
             
@@ -434,10 +450,10 @@ class SymbolAnalyzer:
             ax.fill_between(vol_scaled.index, vol_scaled, color='gray', alpha=0.3, label='Volume (scaled)')
 
             # ==== CANDLE PATTERNS ====
-            open_series = self.df_open[symbol].iloc[-last_days:]
-            high_series = self.df_high[symbol].iloc[-last_days:]
-            low_series = self.df_low[symbol].iloc[-last_days:]
-            close_series = self.df_close[symbol].iloc[-last_days:]
+            open_series = self.data['open'][symbol].iloc[-last_days:]
+            high_series = self.data['high'][symbol].iloc[-last_days:]
+            low_series = self.data['low'][symbol].iloc[-last_days:]
+            close_series = self.data['close'][symbol].iloc[-last_days:]
 
             # Візьмемо останні 100 днів для голосування патернів
             last_100_dates = series.index[-100:]
