@@ -34,17 +34,8 @@ class SymbolAnalyzer:
         self.result_df = None
 
     def run(self, **kwargs):
-        self.find_optimal_parameters(**kwargs)
+        self.find_optimal_token(**kwargs)
         self.analyze(last_days=kwargs.get("last_days", 180))
-
-        # self.result_df = self.analyze_df.merge(self.optimal_df, left_index=True, right_index=True).reset_index()
-        # self.result_df = self.result_df[~self.result_df['index'].isin(self.ignore_symbols)]
-
-        # self.result_df.rename(columns={'index': 'symbol'}, inplace=True)
-        # self.result_df = self.result_df.sort_values(['total_votes', 'cap',
-        #                                              'Optimal Procent', 'Optimal Last Days', 'Optimal Std Procent'], 
-        #                                              ascending=[False, False, True, False, False])
-        # return self.result_df
 
         self.result_df = pd.DataFrame.from_dict(self.res, orient='index')
         self.result_df.reset_index(inplace=True)
@@ -56,7 +47,7 @@ class SymbolAnalyzer:
         
         return self.result_df
 
-    def find_optimal_parameters(self, symbol_list=None,
+    def find_optimal_token(self, symbol_list=None,
                                 min_last_days=60, max_last_days=180, step_day=10,
                                 min_procent=0.0, max_procent=0.5, step_procent=0.05,
                                 min_std_procent=0.0, max_std_procent=0.3, step_std=0.05):
@@ -135,7 +126,7 @@ class SymbolAnalyzer:
         return optimal
 
     def analyze(self, last_days=180):
-        assert self.res is not None, "Спочатку викличте find_optimal_parameters()"
+        assert self.res is not None, "Спочатку викличте find_optimal_token()"
 
         for symbol in tqdm(self.res.keys(), desc='Analyzing'):
 
@@ -195,13 +186,13 @@ class SymbolAnalyzer:
         return 0.0 if np.isnan(interes) else interes
 
     def _determine_direction(self, votes_up, votes_down, votes_neutral, total_votes):
-        scores = f"{total_votes} (U:{votes_up:.1f} D:{votes_down:.1f})"
+        scores = f"{total_votes} (U:{votes_up:.1f} D:{votes_down:.1f} N:{votes_neutral:.1f})"
         if votes_up > votes_down and total_votes > 0:
-            return f"⬆️ Up {scores}"
+            return f"⬆️{scores}"
         elif votes_down > votes_up and total_votes > 0:
-            return f"⬇️ Down {scores}"
+            return f"⬇️{scores}"
         else:
-            return f"➡️ Sideways {scores}"
+            return f"➡️{scores}"
 
     def _generate_signal(self, votes_up, votes_down, total_votes, ma30, ma100, last_rsi, last_price, max_resist_100, min_support_100, volume_series):
         entry_signal = (
@@ -374,18 +365,16 @@ class SymbolAnalyzer:
             ma30.plot(ax=ax, color='orange', linestyle='-', linewidth=1.2, label='MA 30')
 
             # ==== Лінії підтримки та опору ====
-            symbol_cap = self.result_df.loc[self.result_df['symbol'] == symbol, 'cap'].values[0]
+            symbol_cap = self.res[symbol]['cap']
             min_support_100 = self.res[symbol]['min_support_100']
             max_resist_100 = self.res[symbol]['max_resist_100']
             min_support_30 = self.res[symbol]['min_support_30']
             max_resist_30 = self.res[symbol]['max_resist_30']
             last_price = self.res[symbol]['last_price']
             max_historical = self.res[symbol]['max_historical']
-
-            # ==== Розрахунок TP та SL ====
-            SL = self.result_df.loc[self.result_df['symbol'] == symbol, 'SL'].values[0]
-            TP = self.result_df.loc[self.result_df['symbol'] == symbol, 'TP'].values[0]
-            profit_pct = self.result_df.loc[self.result_df['symbol'] == symbol, 'profit_pct'].values[0]
+            SL = self.res[symbol]['SL']
+            TP = self.res[symbol]['TP']
+            profit_pct = self.res[symbol]['profit_pct']
 
             # ==== Фарбування ділянок підтримки та опору ====
             ax.axhspan(min_support_100, max_resist_100, color='lightgreen', alpha=0.1)
