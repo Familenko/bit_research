@@ -293,7 +293,6 @@ class SymbolAnalyzer:
 
         return votes_up, votes_down, votes_neutral
 
-
     def graph(self, last_days=180):
         assert self.result_df is not None, "Спочатку викличте run()"
         
@@ -529,10 +528,6 @@ class SymbolAnalyzer:
                     c_curr < o_prev):
                     ax.scatter(date, h, color='red', s=30, marker='v',
                             label='Engulfing Bearish' if 'Engulfing Bearish' not in ax.get_legend_handles_labels()[1] else "")
-
-            # ==== Додаємо напрямок у заголовок та df ====
-            # ax.set_title(f"{symbol} ({symbol_cap:.2f}B USD) | Profit: {profit_pct:.2f}% SL: {SL:.2f} TP: {TP:.2f} | "
-            #             f"RSI: {last_rsi:.1f} ATR: {last_atr:.2f} | Trend: {direction} Signal: {signal_text}", fontsize=14)
 
             direction = self.result_df.loc[self.result_df['symbol'] == symbol, 'direction'].values[0]
             signal_text = self.result_df.loc[self.result_df['symbol'] == symbol, 'signal_text'].values[0]
