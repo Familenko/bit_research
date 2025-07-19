@@ -51,6 +51,20 @@ def paint_result(df,
         volume_series = volume_df[symbol].iloc[-last_days:]
         ax = axes[idx]
 
+        # ==== Графік інтересу ====
+        cum_vol = volume_series.cumsum()
+        cum_vol_norm = (cum_vol - cum_vol.min()) / (cum_vol.max() - cum_vol.min())
+        time_norm = np.linspace(0, 1, len(cum_vol_norm))
+        ideal_line = time_norm
+        diff = cum_vol_norm.values - ideal_line
+        interes = np.trapezoid(diff, time_norm) * -1
+
+        ax_vol = ax.twinx()
+        cum_vol.plot(ax=ax_vol, color='gray', linestyle='-', linewidth=0.5, label=f'Cumulative Volume ({interes:.2f})')
+        ax_vol.set_ylabel('Cumulative Volume', color='gray')
+        ax_vol.tick_params(axis='y', colors='gray')
+        ax_vol.legend(loc='upper right', fontsize=8)
+
         # ==== RSI Series ====
         rsi_series = df_rsi[symbol].iloc[-last_days:]
         last_rsi = rsi_series.dropna().iloc[-1]
@@ -60,7 +74,7 @@ def paint_result(df,
 
         # ==== Глобальна лінія ====
         global_scaled = global_line * (series.max() - series.min()) + series.min()
-        global_scaled.plot(ax=ax, label='Global Mean', color='black', linestyle='dotted', linewidth=0.5)
+        global_scaled.plot(ax=ax, label='Global Mean', color='black', linestyle='--', linewidth=0.5)
 
         # ==== 200-денна ковзна ====
         ma200_full = df[symbol].rolling(window=200).mean()
@@ -73,7 +87,7 @@ def paint_result(df,
         ma100.plot(ax=ax, color='blue', linestyle='-', linewidth=1.2, label='MA 100')
 
         ma100_global = global_scaled.rolling(window=100).mean()
-        ma100_global.plot(ax=ax, color='blue', linestyle='dotted', linewidth=0.5, label='Global MA 100')
+        ma100_global.plot(ax=ax, color='blue', linestyle='--', linewidth=0.5, label='Global MA 100')
         # ==== 30-денна ковзна ====
         ma30_full = df[symbol].rolling(window=30).mean()
         ma30 = ma30_full.iloc[-last_days:]
@@ -339,7 +353,7 @@ def paint_result(df,
         })
 
         # ==== Налаштування графіка ====
-        ax.legend(loc='upper left', fontsize=10)
+        ax.legend(loc='upper left', fontsize=8)
         ax.grid(True, linestyle='--', alpha=0.5)
 
     plt.tight_layout()

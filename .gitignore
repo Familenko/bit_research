@@ -3,3 +3,5 @@ pdf_store/
 .DS_Store
 tools/__pycache__/
 .venv/
+*.pyc
+*.cpython-311.pyc
