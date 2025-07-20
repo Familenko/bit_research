@@ -46,6 +46,14 @@ class SymbolAnalyzer:
                                                      'max_procent', 'min_last_days', 'max_std_procent'], 
                                                      ascending=[False, False, True, False, False])
         
+        desired_order = [
+            'date', 'symbol', 'last_price', 'direction', 'signal_text', 'cap', 'profit_pct', 'SL', 'TP',
+            'interes', 'last_rsi', 'last_atr', 'max_procent', 'min_last_days', 'max_std_procent',
+            'min_support_100', 'max_resist_100', 'min_support_30', 'max_resist_30', 'min_historical', 'max_historical', 'mean_100', 'mean_30',
+            'votes_up', 'votes_down', 'total_votes'
+        ]
+        self.result_df = self.result_df[[col for col in desired_order if col in self.result_df.columns]]
+        
         return self.result_df
 
     def find_optimal_token(self, symbol_list=None,
