@@ -361,7 +361,7 @@ class SymbolAnalyzer:
 
         return votes_up, votes_down, votes_neutral
 
-    def graph(self, last_days=180):
+    def graph(self, last_days=180, save_pdf=True):
         assert self.result_df is not None, "Спочатку викличте run()"
         last_days = max(last_days, 100)
 
@@ -507,5 +507,15 @@ class SymbolAnalyzer:
             ax.legend(loc='upper left', fontsize=8)
             ax.grid(True, linestyle='--', alpha=0.5)
 
+        if save_pdf:
+            self.save_graph()
+
         plt.tight_layout()
         plt.show()
+
+    def save_graph(self):
+        plt.savefig(f'pdf_store/{self.TODAY}.pdf', dpi=300, bbox_inches='tight')
+        try:
+            plt.savefig(f'/Users/aleksejkitajskij/Library/Mobile Documents/com~apple~CloudDocs/bit_research/{self.TODAY}.pdf', dpi=300, bbox_inches='tight')
+        except Exception as e:
+            print("Error saving PDF to iCloud")
