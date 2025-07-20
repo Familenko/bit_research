@@ -14,6 +14,8 @@ import seaborn as sns
 from tqdm import tqdm
 
 import ta
+from ta.trend import ADXIndicator
+
 
 
 class SymbolAnalyzer:
@@ -384,6 +386,16 @@ class SymbolAnalyzer:
             volume_series = self.data['volume'][symbol].iloc[-last_days:]
             ax = axes[idx]
 
+            # ==== ADX ====
+            high = self.data['high'][symbol].iloc[-last_days:]
+            low = self.data['low'][symbol].iloc[-last_days:]
+            close = self.data['close'][symbol].iloc[-last_days:]
+
+            adx_indicator = ADXIndicator(high=high, low=low, close=close, window=14)
+            adx_val = adx_indicator.adx().iloc[-1]
+            plus_di_val = adx_indicator.adx_pos().iloc[-1]
+            minus_di_val = adx_indicator.adx_neg().iloc[-1]
+
             # ==== Графік інтересу ====
             cum_vol = volume_series.cumsum()
             cum_vol_norm = (cum_vol - cum_vol.min()) / (cum_vol.max() - cum_vol.min())
@@ -499,9 +511,14 @@ class SymbolAnalyzer:
             signal_text = self.result_df.loc[self.result_df['symbol'] == symbol, 'signal_text'].values[0]
             last_rsi = self.result_df.loc[self.result_df['symbol'] == symbol, 'last_rsi'].values[0]
             last_atr = self.result_df.loc[self.result_df['symbol'] == symbol, 'last_atr'].values[0]
-            ax.set_title(f"{symbol} | Cap: {symbol_cap:.2f}B USD | Profit: {profit_pct:.2f}% | "
-                         f"SL: {SL:.2f} TP: {TP:.2f} | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} | "
-                         f"Trend: {direction} Signal: {signal_text}", fontsize=14)
+
+            ax.set_title(
+                f"{symbol} | Cap: {symbol_cap:.2f}B USD | Profit: {profit_pct:.2f}% | "
+                f"SL: {SL:.2f} TP: {TP:.2f} | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} | "
+                f"Trend: {direction} ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) | "
+                f"Signal: {signal_text}",
+                fontsize=12
+            )
 
             # ==== Налаштування графіка ====
             ax.legend(loc='upper left', fontsize=8)
