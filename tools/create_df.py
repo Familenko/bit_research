@@ -21,8 +21,6 @@ class SymbolAnalyzer:
         self.TODAY = date.today().strftime('%Y-%m-%d')
         self.ignore_symbols = ['USDCUSDT', 'FDUSDUSDT', 'USD1USDT']
 
-        self.res = {}
-
         self.data = {}
         self.data['capital'] = cap_df
         self.data['volume'] = df.pivot(index='timestamp', columns='symbol', values='volume')
@@ -31,13 +29,16 @@ class SymbolAnalyzer:
         self.data['high'] = df.pivot(index='timestamp', columns='symbol', values='high')
         self.data['low'] = df.pivot(index='timestamp', columns='symbol', values='low')
 
+        self.cache = {}
         self.result_df = None
 
     def run(self, **kwargs):
+        self.cache = {}
+
         self.find_optimal_token(**kwargs)
         self.analyze(last_days=kwargs.get("last_days", 180))
 
-        self.result_df = pd.DataFrame.from_dict(self.res, orient='index')
+        self.result_df = pd.DataFrame.from_dict(self.cache, orient='index')
         self.result_df.reset_index(inplace=True)
         self.result_df.rename(columns={'index': 'symbol'}, inplace=True)
         self.result_df = self.result_df[~self.result_df['symbol'].isin(self.ignore_symbols)]
@@ -81,7 +82,11 @@ class SymbolAnalyzer:
             mean_100 = df_close[symbol].iloc[-101:-1].mean()
             mean_30 = df_close[symbol].iloc[-31:-1].mean()
 
-            self.res[symbol] = {
+            if self.cache is None:
+                self.cache = {}
+            if self.cache.get(symbol) is None:
+                self.cache[symbol] = {}
+            self.cache[symbol] = {
                 'max_procent': max_procent_found,
                 'min_last_days': min_last_days_found,
                 'max_std_procent': max_std_procent_found,
@@ -96,6 +101,8 @@ class SymbolAnalyzer:
                 'mean_30': mean_30
             }
 
+        return self.cache
+
     def _optimize_symbol(self, symbol, min_last_days, max_last_days, step_day,
                          min_procent, max_procent, step_procent,
                          min_std_procent, max_std_procent, step_std):
@@ -107,7 +114,7 @@ class SymbolAnalyzer:
         for last_days in range(min_last_days, max_last_days + 1, step_day):
             df_slice = df_close.iloc[-last_days:]
             mean_val = df_slice.mean()
-            df_warning_30 = df_close.iloc[-31:-1]
+            min_supp_30 = df_close.iloc[-31:-1].min()
 
             for std_procent in np.arange(max_std_procent, min_std_procent, -step_std):
                 std_n = mean_val * std_procent
@@ -115,7 +122,6 @@ class SymbolAnalyzer:
                 for procent in np.arange(max_procent, min_procent, -step_procent):
                     min_hist = df_close.iloc[:-31].min()
                     min_hist_coeff = min_hist * (procent + 1.0)
-                    min_supp_30 = df_warning_30.min()
 
                     if (df_slice.std() <= std_n and mean_val <= min_hist_coeff and last_price >= min_supp_30):
                         if (procent < optimal[0] or
@@ -125,17 +131,21 @@ class SymbolAnalyzer:
 
         return optimal
 
-    def analyze(self, last_days=180):
-        assert self.res is not None, "Спочатку викличте find_optimal_token()"
+    def analyze(self, last_days=180, symbol_list=None):
+        if symbol_list is None:
+            if self.cache is not None:
+                symbol_list = self.cache.keys()
+            else:
+                raise ValueError("symbol_list must be provided or cache must be initialized.")
 
-        for symbol in tqdm(self.res.keys(), desc='Analyzing'):
+        for symbol in tqdm(symbol_list, desc='Analyzing'):
 
             volume_series = self.data['volume'][symbol].iloc[-last_days:]
             interes = self._calculate_interest(volume_series)
 
             last_rsi = ta.momentum.RSIIndicator(close=self.data['close'][symbol], window=30).rsi().iloc[-last_days:].dropna().iloc[-1]
 
-            last_price = self.res[symbol]['last_price']
+            last_price = self.data['close'][symbol].iloc[-1]
             atr_series = ta.volatility.AverageTrueRange(
                 high=self.data['high'][symbol],
                 low=self.data['low'][symbol],
@@ -152,8 +162,8 @@ class SymbolAnalyzer:
 
             ma100 = self.data['close'][symbol].rolling(window=100).mean().iloc[-last_days:]
             ma30 = self.data['close'][symbol].rolling(window=30).mean().iloc[-last_days:]
-            max_resist_100 = self.res[symbol]['max_resist_100']
-            min_support_100 = self.res[symbol]['min_support_100']
+            max_resist_100 = self.data['close'][symbol].iloc[-101:-1].max()
+            min_support_100 = self.data['close'][symbol].iloc[-101:-1].min()
 
             direction = self._determine_direction(votes_up, votes_down, votes_neutral, total_votes)
             signal_text = self._generate_signal(votes_up, votes_down, total_votes, ma30, ma100, last_rsi, last_price,
@@ -161,7 +171,11 @@ class SymbolAnalyzer:
 
             cap = self.data['capital'][self.data['capital']['symbol'] == symbol]['cap'].values[0] / 1_000_000_000
 
-            self.res[symbol].update({
+            if self.cache is None:
+                self.cache = {}
+            if self.cache.get(symbol) is None:
+                self.cache[symbol] = {}
+            self.cache[symbol].update({
                 'date': self.TODAY,
                 'cap': float(cap),
                 'profit_pct': float(profit_pct),
@@ -176,6 +190,8 @@ class SymbolAnalyzer:
                 'last_atr': last_atr,
                 'interes': interes
             })
+
+        return self.cache
 
     def _calculate_interest(self, volume_series):
         cum_vol = volume_series.cumsum()
@@ -365,16 +381,16 @@ class SymbolAnalyzer:
             ma30.plot(ax=ax, color='orange', linestyle='-', linewidth=1.2, label='MA 30')
 
             # ==== Лінії підтримки та опору ====
-            symbol_cap = self.res[symbol]['cap']
-            min_support_100 = self.res[symbol]['min_support_100']
-            max_resist_100 = self.res[symbol]['max_resist_100']
-            min_support_30 = self.res[symbol]['min_support_30']
-            max_resist_30 = self.res[symbol]['max_resist_30']
-            last_price = self.res[symbol]['last_price']
-            max_historical = self.res[symbol]['max_historical']
-            SL = self.res[symbol]['SL']
-            TP = self.res[symbol]['TP']
-            profit_pct = self.res[symbol]['profit_pct']
+            symbol_cap = self.result_df.loc[self.result_df['symbol'] == symbol, 'cap'].values[0]
+            min_support_100 = self.result_df.loc[self.result_df['symbol'] == symbol, 'min_support_100'].values[0]
+            max_resist_100 = self.result_df.loc[self.result_df['symbol'] == symbol, 'max_resist_100'].values[0]
+            min_support_30 = self.result_df.loc[self.result_df['symbol'] == symbol, 'min_support_30'].values[0]
+            max_resist_30 = self.result_df.loc[self.result_df['symbol'] == symbol, 'max_resist_30'].values[0]
+            last_price = self.result_df.loc[self.result_df['symbol'] == symbol, 'last_price'].values[0]
+            max_historical = self.result_df.loc[self.result_df['symbol'] == symbol, 'max_historical'].values[0]
+            SL = self.result_df.loc[self.result_df['symbol'] == symbol, 'SL'].values[0]
+            TP = self.result_df.loc[self.result_df['symbol'] == symbol, 'TP'].values[0]
+            profit_pct = self.result_df.loc[self.result_df['symbol'] == symbol, 'profit_pct'].values[0]
 
             # ==== Фарбування ділянок підтримки та опору ====
             ax.axhspan(min_support_100, max_resist_100, color='lightgreen', alpha=0.1)
@@ -395,8 +411,9 @@ class SymbolAnalyzer:
             ax.axhline(max_resist_30, color='gray', linestyle='dotted',
                     label=f"Max Resist 30 ({max_resist_30:.2f})")
 
-            ax.axhline(self.res[symbol]['min_historical'], color='red', linestyle='--',
-                       label=f"Min Historical ({self.res[symbol]['min_historical']:.2f})")
+            ax.axhline(self.result_df.loc[self.result_df['symbol'] == symbol, 'min_historical'].values[0], 
+                       color='red', linestyle='--',
+                       label=f"Min Historical ({self.result_df.loc[self.result_df['symbol'] == symbol, 'min_historical'].values[0]:.2f})")
             ax.axhline(max_historical, color='red', linestyle='--',
                        label=f"Max Historical ({max_historical:.2f})")
             
