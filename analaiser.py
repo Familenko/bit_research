@@ -1,21 +1,12 @@
 from datetime import date
-import numpy as np
-import pandas as pd
-import ta
-from tqdm import tqdm
-
-from datetime import date
 
 import numpy as np
 import pandas as pd
+
 import matplotlib.pyplot as plt
-import seaborn as sns
-
 from tqdm import tqdm
 
 import ta
-from ta.trend import ADXIndicator
-
 
 
 class SymbolAnalyzer:
@@ -38,7 +29,7 @@ class SymbolAnalyzer:
         self.cache = {}
 
         self.find_optimal_token(**kwargs)
-        self.analyze(last_days=kwargs.get("last_days", 180))
+        self.analyze(last_days=kwargs.get("last_days", 200))
 
         self.result_df = pd.DataFrame.from_dict(self.cache, orient='index')
         self.result_df.reset_index(inplace=True)
@@ -59,7 +50,7 @@ class SymbolAnalyzer:
         return self.result_df
 
     def find_optimal_token(self, symbol_list=None,
-                                min_last_days=60, max_last_days=180, step_day=10,
+                                min_last_days=60, max_last_days=200, step_day=10,
                                 min_procent=0.0, max_procent=0.5, step_procent=0.05,
                                 min_std_procent=0.0, max_std_procent=0.3, step_std=0.05):
 
@@ -141,7 +132,7 @@ class SymbolAnalyzer:
 
         return optimal
 
-    def analyze(self, last_days=180, symbol_list=None):
+    def analyze(self, last_days=200, symbol_list=None):
         if symbol_list is None:
             if self.cache is not None:
                 symbol_list = self.cache.keys()
@@ -363,7 +354,7 @@ class SymbolAnalyzer:
 
         return votes_up, votes_down, votes_neutral
 
-    def graph(self, last_days=180, save_pdf=True):
+    def graph(self, last_days=200, save_pdf=True):
         assert self.result_df is not None, "Спочатку викличте run()"
         last_days = max(last_days, 100)
 
@@ -391,7 +382,7 @@ class SymbolAnalyzer:
             low = self.data['low'][symbol].iloc[-last_days:]
             close = self.data['close'][symbol].iloc[-last_days:]
 
-            adx_indicator = ADXIndicator(high=high, low=low, close=close, window=14)
+            adx_indicator = ta.trend.ADXIndicator(high=high, low=low, close=close, window=14)
             adx_val = adx_indicator.adx().iloc[-1]
             plus_di_val = adx_indicator.adx_pos().iloc[-1]
             minus_di_val = adx_indicator.adx_neg().iloc[-1]
