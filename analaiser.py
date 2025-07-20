@@ -144,14 +144,14 @@ class SymbolAnalyzer:
             if self.cache is not None:
                 symbol_list = self.cache.keys()
             else:
-                raise ValueError("symbol_list must be provided or cache must be initialized.")
+                raise ValueError("symbol_list must be provided or cache must be initialized (e.g., by running find_optimal_token)")
 
         for symbol in tqdm(symbol_list, desc='Analyzing'):
 
             volume_series = self.data['volume'][symbol].iloc[-last_days:]
             interes = self._calculate_interest(volume_series)
 
-            last_rsi = ta.momentum.RSIIndicator(close=self.data['close'][symbol], window=30).rsi().iloc[-last_days:].dropna().iloc[-1]
+            last_rsi = ta.momentum.RSIIndicator(close=self.data['close'][symbol], window=30).rsi().iloc[-last_days:].iloc[-1]
 
             last_price = self.data['close'][symbol].iloc[-1]
             atr_series = ta.volatility.AverageTrueRange(
@@ -160,7 +160,7 @@ class SymbolAnalyzer:
                 close=self.data['close'][symbol],
                 window=30
             ).average_true_range()
-            last_atr = atr_series.dropna().iloc[-1]
+            last_atr = atr_series.iloc[-1]
             SL = last_price - last_atr * 2.5
             TP = last_price + last_atr * 2.5
             profit_pct = ((TP - last_price) / last_price) * 100
@@ -174,8 +174,8 @@ class SymbolAnalyzer:
             min_support_100 = self.data['close'][symbol].iloc[-101:-1].min()
 
             direction = self._determine_direction(votes_up, votes_down, votes_neutral, total_votes)
-            signal_text = self._generate_signal(votes_up, votes_down, total_votes, ma30, ma100, last_rsi, last_price,
-                                                max_resist_100, min_support_100, volume_series)
+            signal_text = self._generate_signal(votes_up, votes_down, total_votes, ma30, ma100, last_rsi, 
+                                                last_price, max_resist_100, min_support_100, volume_series)
 
             cap = self.data['capital'][self.data['capital']['symbol'] == symbol]['cap'].values[0] / 1_000_000_000
 
