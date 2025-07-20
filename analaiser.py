@@ -29,7 +29,7 @@ class SymbolAnalyzer:
         self.cache = {}
 
         self.find_optimal_token(**kwargs)
-        self.analyze(last_days=kwargs.get("last_days", 200))
+        self.analyze(last_days=kwargs.get("last_days", 180))
 
         self.result_df = pd.DataFrame.from_dict(self.cache, orient='index')
         self.result_df.reset_index(inplace=True)
@@ -50,7 +50,7 @@ class SymbolAnalyzer:
         return self.result_df
 
     def find_optimal_token(self, symbol_list=None,
-                                min_last_days=60, max_last_days=200, step_day=10,
+                                min_last_days=60, max_last_days=180, step_day=10,
                                 min_procent=0.0, max_procent=0.5, step_procent=0.05,
                                 min_std_procent=0.0, max_std_procent=0.3, step_std=0.05):
 
@@ -132,7 +132,7 @@ class SymbolAnalyzer:
 
         return optimal
 
-    def analyze(self, last_days=200, symbol_list=None):
+    def analyze(self, last_days=180, symbol_list=None):
         if symbol_list is None:
             if self.cache is not None:
                 symbol_list = self.cache.keys()
@@ -154,8 +154,8 @@ class SymbolAnalyzer:
                 window=30
             ).average_true_range()
             last_atr = atr_series.iloc[-1]
-            SL = last_price - last_atr * 2.5
-            TP = last_price + last_atr * 2.5
+            SL = last_price - last_atr * 3
+            TP = last_price + last_atr * 3
             profit_pct = ((TP - last_price) / last_price) * 100
 
             votes_up, votes_down, votes_neutral = self._candle_votes(symbol, last_days)
@@ -354,7 +354,7 @@ class SymbolAnalyzer:
 
         return votes_up, votes_down, votes_neutral
 
-    def graph(self, last_days=200, save_pdf=True):
+    def graph(self, last_days=180, save_pdf=True):
         assert self.result_df is not None, "Спочатку викличте run()"
         last_days = max(last_days, 100)
 
