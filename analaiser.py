@@ -514,6 +514,7 @@ class SymbolAnalyzer:
             # ==== Налаштування графіка ====
             ax.legend(loc='upper left', fontsize=8)
             ax.grid(True, linestyle='--', alpha=0.5)
+            plt.subplots_adjust(hspace=0.75)
 
         if save_pdf:
             self.save_graph()
