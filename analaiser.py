@@ -505,9 +505,8 @@ class SymbolAnalyzer:
 
             ax.set_title(
                 f"{symbol} | Cap: {symbol_cap:.2f}B USD | Profit: {profit_pct:.2f}% | "
-                f"SL: {SL:.2f} TP: {TP:.2f} | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} | "
-                f"Trend: {direction} ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) | "
-                f"Signal: {signal_text}",
+                f"SL: {SL:.2f} TP: {TP:.2f} | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} |\n"
+                f"Trend: {direction} ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) Signal: {signal_text}",
                 fontsize=12
             )
 
