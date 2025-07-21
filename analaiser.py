@@ -40,7 +40,7 @@ class SymbolAnalyzer:
                                                      ascending=[False, False, True, False, False])
         
         desired_order = [
-            'date', 'symbol', 'last_price', 'direction', 'signal_text', 'cap', 'profit_pct', 'SL', 'TP',
+            'date', 'symbol', 'last_price', 'direction', 'signal_text', 'cap', 'SL', 'TP',
             'interes', 'last_rsi', 'last_atr', 'max_procent', 'min_last_days', 'max_std_procent',
             'min_support_100', 'max_resist_100', 'min_support_30', 'max_resist_30', 'min_historical', 'max_historical', 'mean_100', 'mean_30',
             'votes_up', 'votes_down', 'total_votes'
@@ -148,15 +148,14 @@ class SymbolAnalyzer:
 
             last_price = self.data['close'][symbol].iloc[-1]
             atr_series = ta.volatility.AverageTrueRange(
-                high=self.data['high'][symbol],
-                low=self.data['low'][symbol],
-                close=self.data['close'][symbol],
+                high=self.data['high'][symbol][last_days:],
+                low=self.data['low'][symbol][last_days:],
+                close=self.data['close'][symbol][last_days:],
                 window=30
             ).average_true_range()
             last_atr = atr_series.iloc[-1]
             SL = last_price - last_atr * 3
-            TP = last_price + last_atr * 3
-            profit_pct = ((TP - last_price) / last_price) * 100
+            TP = last_price * 1.2
 
             votes_up, votes_down, votes_neutral = self._candle_votes(symbol, last_days)
             total_votes = int(abs(votes_up - votes_down) - votes_neutral + (interes * 100))
@@ -179,7 +178,6 @@ class SymbolAnalyzer:
             self.cache[symbol].update({
                 'date': self.TODAY,
                 'cap': float(cap),
-                'profit_pct': float(profit_pct),
                 'SL': float(SL),
                 'TP': float(TP),
                 'direction': direction,
@@ -438,7 +436,6 @@ class SymbolAnalyzer:
             max_historical = self.result_df.loc[self.result_df['symbol'] == symbol, 'max_historical'].values[0]
             SL = self.result_df.loc[self.result_df['symbol'] == symbol, 'SL'].values[0]
             TP = self.result_df.loc[self.result_df['symbol'] == symbol, 'TP'].values[0]
-            profit_pct = self.result_df.loc[self.result_df['symbol'] == symbol, 'profit_pct'].values[0]
 
             # ==== Фарбування ділянок підтримки та опору ====
             ax.axhspan(min_support_100, max_resist_100, color='lightgreen', alpha=0.1)
@@ -504,15 +501,20 @@ class SymbolAnalyzer:
             last_atr = self.result_df.loc[self.result_df['symbol'] == symbol, 'last_atr'].values[0]
 
             ax.set_title(
-                f"{symbol} | Cap: {symbol_cap:.2f}B USD | Profit: {profit_pct:.2f}% | "
-                f"SL: {SL:.2f} TP: {TP:.2f} | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} |\n"
-                f"Trend: {direction} ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) Signal: {signal_text}",
+                f"| Cap: {symbol_cap:.2f}B USD | SL: {SL:.2f} TP: {TP:.2f} | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} |\n"
+                f"| Trend: {direction} | ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) |",
                 fontsize=12
             )
+
+            buttom_text = f"{symbol} | {signal_text}"
 
             # ==== Налаштування графіка ====
             ax.legend(loc='upper left', fontsize=8)
             ax.grid(True, linestyle='--', alpha=0.5)
+
+            color_map = {"BUY": "green", "SELL": "red", "HOLD": "gray"}
+            signal_color = color_map.get(signal_text, "black")
+            ax.set_xlabel(buttom_text, color=signal_color, fontsize=12)
 
         if save_pdf:
             self.save_graph()
