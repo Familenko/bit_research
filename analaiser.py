@@ -501,12 +501,12 @@ class SymbolAnalyzer:
             last_atr = self.result_df.loc[self.result_df['symbol'] == symbol, 'last_atr'].values[0]
 
             ax.set_title(
-                f"| Cap: {symbol_cap:.2f}B USD | SL: {SL:.2f} TP: {TP:.2f} | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} "
+                f"| Cap: {symbol_cap:.2f}B USD | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} "
                 f"| Trend: {direction} | ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) |",
                 fontsize=12
             )
 
-            buttom_text = f"{symbol} | {signal_text}"
+            buttom_text = f"{symbol} | {signal_text} | SL: {SL:.2f} TP: {TP:.2f}"
 
             # ==== Налаштування графіка ====
             ax.legend(loc='upper left', fontsize=8)
