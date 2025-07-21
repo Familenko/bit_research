@@ -507,14 +507,13 @@ class SymbolAnalyzer:
             )
 
             buttom_text = f"{symbol} | {signal_text} | SL: {SL:.2f} TP: {TP:.2f}"
+            color_map = {"BUY": "green", "SELL": "red", "HOLD": "gray"}
+            signal_color = color_map.get(signal_text, "black")
+            ax.set_xlabel(buttom_text, color=signal_color, fontsize=12)
 
             # ==== Налаштування графіка ====
             ax.legend(loc='upper left', fontsize=8)
             ax.grid(True, linestyle='--', alpha=0.5)
-
-            color_map = {"BUY": "green", "SELL": "red", "HOLD": "gray"}
-            signal_color = color_map.get(signal_text, "black")
-            ax.set_xlabel(buttom_text, color=signal_color, fontsize=12)
 
         if save_pdf:
             self.save_graph()
