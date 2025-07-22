@@ -25,6 +25,8 @@ class SymbolAnalyzer:
         self.cache = {}
         self.result_df = None
 
+        self.bullish_pattern = []
+
     def run(self, **kwargs):
         self.cache = {}
 
@@ -248,6 +250,8 @@ class SymbolAnalyzer:
         votes_down = 0.0
         votes_neutral = 0.0
 
+        engulfing, hammer, star = [], [], []
+
         # Одно-свічкові патерни (hammer, inverted hammer, doji)
         for date in last_100_dates:
             o = open_series.loc[date]
@@ -264,6 +268,7 @@ class SymbolAnalyzer:
             # hammer (позитивний сигнал)
             if candle_range > 0 and body < candle_range * 0.3 and lower_shadow > body * 2:
                 votes_up += 1 * vol_weight
+                hammer.append(l)
                 if ax:
                     ax.scatter(date, l, color='green', s=20, marker='P', label='Hammer' if 'Hammer' not in ax.get_legend_handles_labels()[1] else "")
 
@@ -273,7 +278,7 @@ class SymbolAnalyzer:
                 if ax:
                     ax.scatter(date, h, color='red', s=20, marker='P', label='Inverted Hammer' if 'Inverted Hammer' not in ax.get_legend_handles_labels()[1] else "")
 
-            # doji — сумнівний сигнал (не враховуємо в голосуванні)
+            # doji — сумнівний сигнал
             if candle_range > 0 and body < candle_range * 0.1:
                 votes_neutral += 1 * vol_weight
                 if ax:
@@ -306,6 +311,7 @@ class SymbolAnalyzer:
                 c3 > o3 and body3 > (h3 - l3) * 0.5 and
                 c3 > ((c1 + o1)/2)):
                 votes_up += 3 * vol_weight
+                star.append(c3)
                 if ax:
                     ax.scatter(date, c3, color='green', s=80, marker='*', label='Morning Star' if 'Morning Star' not in ax.get_legend_handles_labels()[1] else "")
 
@@ -338,6 +344,7 @@ class SymbolAnalyzer:
                 o_curr < c_prev and
                 c_curr > o_prev):
                 votes_up += 2 * vol_weight
+                engulfing.append(l)
                 if ax:
                     ax.scatter(date, l, color='green', s=30, marker='^', label='Engulfing Bullish' if 'Engulfing Bullish' not in ax.get_legend_handles_labels()[1] else "")
 
@@ -349,6 +356,8 @@ class SymbolAnalyzer:
                 votes_down += 2 * vol_weight
                 if ax:
                     ax.scatter(date, h, color='red', s=30, marker='v', label='Engulfing Bearish' if 'Engulfing Bearish' not in ax.get_legend_handles_labels()[1] else "")
+
+        self.bullish_pattern =  hammer[-3:] + engulfing[-2:] + star[-1:]
 
         return votes_up, votes_down, votes_neutral
 
@@ -494,6 +503,11 @@ class SymbolAnalyzer:
             # ==== CANDLE PATTERNS ====
             self._candle_votes(symbol, last_days, ax=ax)
 
+            # ==== entry price ====
+            self.bullish_pattern += [ma30.iloc[-1], ma100.iloc[-1]]
+            valid_entry_levels = [p for p in self.bullish_pattern if p < last_price]
+            entry_price = max(valid_entry_levels) if valid_entry_levels else None
+
             # ==== Заголовок графіка ====
             direction = self.result_df.loc[self.result_df['symbol'] == symbol, 'direction'].values[0]
             signal_text = self.result_df.loc[self.result_df['symbol'] == symbol, 'signal_text'].values[0]
@@ -506,7 +520,7 @@ class SymbolAnalyzer:
                 fontsize=12
             )
 
-            buttom_text = f"{symbol} | {signal_text} | SL: {SL:.2f} TP: {TP:.2f}"
+            buttom_text = f"{symbol} | {signal_text} | SL: {SL:.2f} TP: {TP:.2f} | Entry: {entry_price:.2f}"
             color_map = {"BUY": "green", "SELL": "red", "HOLD": "gray"}
             signal_color = color_map.get(signal_text, "black")
             ax.set_xlabel(buttom_text, color=signal_color, fontsize=12)
