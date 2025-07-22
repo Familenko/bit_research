@@ -503,11 +503,6 @@ class SymbolAnalyzer:
             # ==== CANDLE PATTERNS ====
             self._candle_votes(symbol, last_days, ax=ax)
 
-            # ==== entry price ====
-            self.bullish_pattern += [ma30.iloc[-1], ma100.iloc[-1]]
-            valid_entry_levels = [p for p in self.bullish_pattern if p < last_price]
-            entry_price = max(valid_entry_levels) if valid_entry_levels else None
-
             # ==== Заголовок графіка ====
             direction = self.result_df.loc[self.result_df['symbol'] == symbol, 'direction'].values[0]
             signal_text = self.result_df.loc[self.result_df['symbol'] == symbol, 'signal_text'].values[0]
@@ -519,6 +514,12 @@ class SymbolAnalyzer:
                 f"| Trend: {direction} | ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) |",
                 fontsize=12
             )
+
+            # entry price
+            vibrated_price = last_price - last_atr
+            self.bullish_pattern += [ma30.iloc[-1], ma100.iloc[-1], vibrated_price]
+            valid_entry_levels = [p for p in self.bullish_pattern if p < last_price]
+            entry_price = max(valid_entry_levels) if valid_entry_levels else None
 
             buttom_text = f"{symbol} | {signal_text} | SL: {SL:.2f} TP: {TP:.2f} | Entry: {entry_price:.2f}"
             color_map = {"BUY": "green", "SELL": "red", "HOLD": "gray"}
