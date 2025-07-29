@@ -521,7 +521,7 @@ class SymbolAnalyzer:
             vibrated_price = last_price - last_atr
             self.bullish_pattern += [ma30.iloc[-1], ma100.iloc[-1], vibrated_price]
             valid_entry_levels = [p for p in self.bullish_pattern if p < last_price]
-            entry_price = max(valid_entry_levels) if valid_entry_levels else None
+            entry_price = max(valid_entry_levels) if valid_entry_levels else -1
 
             buttom_text = f"{symbol} | {signal_text} | SL: {SL:.2f} TP: {TP:.2f} | Entry: {entry_price:.2f}"
             color_map = {"BUY": "green", "SELL": "red", "HOLD": "gray"}
