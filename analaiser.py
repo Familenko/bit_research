@@ -487,9 +487,11 @@ class SymbolAnalyzer:
 
             # ==== Лінії часу ====
             if len(series) >= 100:
+                pos_7 = len(series) - 7
                 pos_30 = len(series) - 30
                 pos_100 = len(series) - 100
                 
+                ax.axvline(pos_7, color='gray', linestyle=':', label='7 Days Ago')
                 ax.axvline(pos_30, color='gray', linestyle=':', label='30 Days Ago')
                 ax.axvline(pos_100, color='gray', linestyle=':', label='100 Days Ago')
 
@@ -498,7 +500,7 @@ class SymbolAnalyzer:
             upper_limit = max_resist_100 * 1.2
             ax.set_ylim(lower_limit, upper_limit)
             vol_scaled = volume_series / volume_series.max() * (upper_limit - lower_limit) * 0.2 + lower_limit
-            ax.fill_between(vol_scaled.index, vol_scaled, color='gray', alpha=0.3, label='Volume (scaled)')
+            ax.fill_between(vol_scaled.index, vol_scaled, color='gray', alpha=0.3, label='Volume')
 
             # ==== CANDLE PATTERNS ====
             self._candle_votes(symbol, last_days, ax=ax)
