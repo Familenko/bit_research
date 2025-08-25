@@ -54,7 +54,8 @@ class SymbolAnalyzer:
     def find_optimal_token(self, symbol_list=None,
                                 min_last_days=60, max_last_days=180, step_day=10,
                                 min_procent=0.0, max_procent=0.5, step_procent=0.05,
-                                min_std_procent=0.0, max_std_procent=0.3, step_std=0.05):
+                                min_std_procent=0.0, max_std_procent=0.3, step_std=0.05,
+                                switch_off_optimization=False):
 
         df_close = self.data['close']
 
@@ -69,7 +70,7 @@ class SymbolAnalyzer:
                 min_std_procent, max_std_procent, step_std
             )
 
-            if symbol != 'BTCUSDT':
+            if symbol != 'BTCUSDT' and not switch_off_optimization:
                 if (max_procent_found == max_procent and
                     min_last_days_found == min_last_days and
                     max_std_procent_found == max_std_procent):
