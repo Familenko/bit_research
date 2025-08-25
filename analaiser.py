@@ -27,12 +27,7 @@ class SymbolAnalyzer:
 
         self.bullish_pattern = []
 
-    def run(self, **kwargs):
-        self.cache = {}
-
-        self.find_optimal_token(**kwargs)
-        self.analyze(last_days=kwargs.get("last_days", 180))
-
+    def _forming_result_df(self):
         self.result_df = pd.DataFrame.from_dict(self.cache, orient='index')
         self.result_df.reset_index(inplace=True)
         self.result_df.rename(columns={'index': 'symbol'}, inplace=True)
@@ -50,6 +45,14 @@ class SymbolAnalyzer:
         self.result_df = self.result_df[[col for col in desired_order if col in self.result_df.columns]]
         
         return self.result_df
+
+    def run(self, **kwargs):
+        self.cache = {}
+
+        self.find_optimal_token(**kwargs)
+        self.analyze(symbol_list=kwargs.get('symbol_list', None), last_days=kwargs.get('last_days', 180))
+    
+        return self._forming_result_df()
 
     def find_optimal_token(self, symbol_list=None,
                                 min_last_days=60, max_last_days=180, step_day=10,
