@@ -365,11 +365,11 @@ class SymbolAnalyzer:
 
         return votes_up, votes_down, votes_neutral
 
-    def _kadane_subarray(self, series):
-        arr = series.values
-        mean_val = arr.mean()
-        
-        arr = arr - mean_val
+    def _kadane_subarray(self, series, window=100):
+        rolling_mean = series.rolling(window=window, min_periods=1).mean()
+        rolling_mean = rolling_mean * 1.1
+
+        arr = series.values - rolling_mean.values
 
         max_sum = current_sum = arr[0]
         start = end = temp_start = 0
@@ -386,7 +386,7 @@ class SymbolAnalyzer:
                 start = temp_start
                 end = i
 
-        return series.index[start], series.index[end], max_sum
+        return series.index[start], series.index[end]
 
     def graph(self, last_days=180, save_pdf=True):
         assert self.result_df is not None, "Спочатку викличте run()"
@@ -530,11 +530,12 @@ class SymbolAnalyzer:
             ax.fill_between(vol_scaled.index, vol_scaled, color='gray', alpha=0.3, label='Volume')
 
             # ==== Визначення та відображення max sum підмасиву ====
-            start_idx, end_idx, kadane_max_sum = self._kadane_subarray(series)
-            ax.axvline(start_idx, color='blue', linestyle='--', linewidth=1.5, label='Max Sum Start')
-            ax.axvline(end_idx, color='red', linestyle='--', linewidth=1.5, label='Max Sum End')
-            ax.text(start_idx, series.max(), f'Start', color='blue', fontsize=10, verticalalignment='bottom')
-            ax.text(end_idx, series.max(), f'End', color='red', fontsize=10, verticalalignment='bottom')
+            start_idx, end_idx = self._kadane_subarray(series)
+            ax.axvline(start_idx, color='blue', linestyle='--', linewidth=1.5, label='Bull Start')
+            ax.axvline(end_idx, color='red', linestyle='--', linewidth=1.5, label='Bull End')
+
+            kadane_avg = series.loc[start_idx:end_idx].mean()
+            kadane_coef = last_price / kadane_avg if end_idx == series.index[-1] else 0.0
 
             # ==== CANDLE PATTERNS ====
             self._candle_votes(symbol, last_days, ax=ax)
@@ -546,8 +547,8 @@ class SymbolAnalyzer:
             last_atr = self.result_df.loc[self.result_df['symbol'] == symbol, 'last_atr'].values[0]
 
             ax.set_title(
-                f"| Cap: {symbol_cap:.2f}B USD | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} "
-                f"| Trend: {direction} | ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) Kadane: {kadane_max_sum/last_price:.2f} |",
+                f"| Cap: {symbol_cap:.2f}B USD | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} Kadane: {kadane_coef:.2f} "
+                f"| Trend: {direction} | ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) |",
                 fontsize=12
             )
 
