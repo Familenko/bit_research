@@ -365,6 +365,29 @@ class SymbolAnalyzer:
 
         return votes_up, votes_down, votes_neutral
 
+    def _kadane_subarray(self, series):
+        arr = series.values
+        mean_val = arr.mean()
+        
+        arr = arr - mean_val
+
+        max_sum = current_sum = arr[0]
+        start = end = temp_start = 0
+
+        for i in range(1, len(arr)):
+            if arr[i] > current_sum + arr[i]:
+                current_sum = arr[i]
+                temp_start = i
+            else:
+                current_sum += arr[i]
+
+            if current_sum > max_sum:
+                max_sum = current_sum
+                start = temp_start
+                end = i
+
+        return series.index[start], series.index[end], max_sum
+
     def graph(self, last_days=180, save_pdf=True):
         assert self.result_df is not None, "Спочатку викличте run()"
         last_days = max(last_days, 100)
@@ -506,6 +529,13 @@ class SymbolAnalyzer:
             vol_scaled = volume_series / volume_series.max() * (upper_limit - lower_limit) * 0.2 + lower_limit
             ax.fill_between(vol_scaled.index, vol_scaled, color='gray', alpha=0.3, label='Volume')
 
+            # ==== Визначення та відображення max sum підмасиву ====
+            start_idx, end_idx, kadane_max_sum = self._kadane_subarray(series)
+            ax.axvline(start_idx, color='blue', linestyle='--', linewidth=1.5, label='Max Sum Start')
+            ax.axvline(end_idx, color='red', linestyle='--', linewidth=1.5, label='Max Sum End')
+            ax.text(start_idx, series.max(), f'Start', color='blue', fontsize=10, verticalalignment='bottom')
+            ax.text(end_idx, series.max(), f'End', color='red', fontsize=10, verticalalignment='bottom')
+
             # ==== CANDLE PATTERNS ====
             self._candle_votes(symbol, last_days, ax=ax)
 
@@ -517,7 +547,7 @@ class SymbolAnalyzer:
 
             ax.set_title(
                 f"| Cap: {symbol_cap:.2f}B USD | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} "
-                f"| Trend: {direction} | ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) |",
+                f"| Trend: {direction} | ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) Kadane: {kadane_max_sum/last_price:.2f} |",
                 fontsize=12
             )
 
