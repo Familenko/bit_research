@@ -547,7 +547,7 @@ class SymbolAnalyzer:
             vol_scaled = volume_series / volume_series.max() * (upper_limit - lower_limit) * 0.2 + lower_limit
             ax.fill_between(vol_scaled.index, vol_scaled, color='gray', alpha=0.3, label='Volume')
 
-            # ==== Визначення та відображення max sum підмасиву ====
+            # ==== Визначення та відображення Bullrun підмасиву ====
             start_idx, end_idx = kadane_subarray(open_series)
             ax.axvline(start_idx, color='blue', linestyle='--', linewidth=1.5, label='Bull Start')
             ax.axvline(end_idx, color='red', linestyle='--', linewidth=1.5, label='Bull End')
@@ -555,7 +555,7 @@ class SymbolAnalyzer:
             kadane_avg = open_series.loc[start_idx:end_idx].mean()
             kadane_coef = last_price / kadane_avg if end_idx == open_series.index[-1] else 0.0
 
-            # ==== Визначення та відображення топ-3 точок зміни тренду ====
+            # ==== Визначення та відображення топ точок зміни тренду ====
             top3_cps = detect_top_changepoints(open_series, changepoint_n=3)
             for cp in top3_cps:
                 ax.axhline(cp, color='orange', linestyle='--', linewidth=1.0)
