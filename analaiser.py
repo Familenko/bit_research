@@ -27,10 +27,9 @@ class SymbolAnalyzer:
         self.data['high'] = df.pivot(index='timestamp', columns='symbol', values='high')
         self.data['low'] = df.pivot(index='timestamp', columns='symbol', values='low')
 
-        self.cache = {}
-        self.result_df = None
-
         self.bullish_pattern = []
+
+        self.result_df = None
 
     def _forming_result_df(self, analised_symbols):
         result_df = pd.DataFrame.from_dict(analised_symbols, orient='index')
@@ -52,8 +51,6 @@ class SymbolAnalyzer:
         return result_df
 
     def run(self, **kwargs):
-        self.cache = {}
-
         optimal_symbols = self.find_optimal_token(
             symbol_list=kwargs.get('symbol_list', 'all'),
         )
