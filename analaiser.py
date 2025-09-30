@@ -381,7 +381,7 @@ class SymbolAnalyzer:
             else:
                 current_sum += arr[i]
 
-            if current_sum > max_sum:
+            if current_sum >= max_sum:
                 max_sum = current_sum
                 start = temp_start
                 end = i
@@ -393,7 +393,7 @@ class SymbolAnalyzer:
         last_days = max(last_days, 100)
 
         num_symbols = len(self.result_df)
-        fig, axes = plt.subplots(nrows=num_symbols, ncols=1, figsize=(16, 6 * num_symbols), sharex=False)
+        fig, axes = plt.subplots(nrows=num_symbols, ncols=1, figsize=(16, 8 * num_symbols), sharex=False)
         if num_symbols == 1:
             axes = [axes]
 
@@ -523,8 +523,16 @@ class SymbolAnalyzer:
                 ax.axvline(pos_100, color='gray', linestyle=':', label='100 Days Ago')
 
             # ==== Накладання обʼєму ====
-            lower_limit = min_support_100 * 0.8
-            upper_limit = max_resist_100 * 1.2
+            if last_price > max_resist_100 * 1.1:
+                upper_limit = last_price * 1.1
+            else:
+                upper_limit = max_resist_100 * 1.1
+
+            if last_price < min_support_100 * 0.9:
+                lower_limit = last_price * 0.9
+            else:
+                lower_limit = min_support_100 * 0.9
+
             ax.set_ylim(lower_limit, upper_limit)
             vol_scaled = volume_series / volume_series.max() * (upper_limit - lower_limit) * 0.2 + lower_limit
             ax.fill_between(vol_scaled.index, vol_scaled, color='gray', alpha=0.3, label='Volume')
