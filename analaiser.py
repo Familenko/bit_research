@@ -443,6 +443,10 @@ class SymbolAnalyzer:
         # ==== ПОЧАТОК ЦИКЛУ ПО СИМВОЛАМ ====
         for idx, symbol in enumerate(self.result_df['symbol']):
             series = self.data['close'][symbol].iloc[-last_days:]
+
+            if len(series) < last_days:
+                continue
+
             volume_series = self.data['volume'][symbol].iloc[-last_days:]
             ax = axes[idx]
 
