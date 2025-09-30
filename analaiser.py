@@ -37,9 +37,9 @@ class SymbolAnalyzer:
         result_df.reset_index(inplace=True)
         result_df.rename(columns={'index': 'symbol'}, inplace=True)
         result_df = result_df[~result_df['symbol'].isin(self.ignore_symbols)]
-        result_df = result_df.sort_values(['total_votes', 'cap',
-                                                     'max_procent', 'min_last_days', 'max_std_procent'], 
-                                                     ascending=[False, False, True, False, False])
+        result_df = result_df.sort_values(
+            ['total_votes', 'cap', 'max_procent', 'min_last_days', 'max_std_procent'],
+            ascending=[False, False, True, False, False])
         
         desired_order = [
             'date', 'symbol', 'last_price', 'direction', 'signal_text', 'cap', 'SL', 'TP',
@@ -54,21 +54,26 @@ class SymbolAnalyzer:
     def run(self, **kwargs):
         self.cache = {}
 
-        optimal_symbols = self.find_optimal_token(**kwargs)
-        analised_symbols = self.analyze(optimal_symbols=optimal_symbols, last_days=kwargs.get('last_days', 180))
+        optimal_symbols = self.find_optimal_token(
+            symbol_list=kwargs.get('symbol_list', 'all'),
+        )
+        analised_symbols = self.analyze(
+            optimal_symbols=kwargs.get('symbol_list', optimal_symbols), 
+            last_days=kwargs.get('last_days', 180)
+            )
+
         self.result_df = self._forming_result_df(analised_symbols)
     
         return self.result_df
 
-    def find_optimal_token(self, symbol_list=None,
+    def find_optimal_token(self, symbol_list='all',
                                 min_last_days=60, max_last_days=180, step_day=10,
                                 min_procent=0.0, max_procent=0.5, step_procent=0.05,
-                                min_std_procent=0.0, max_std_procent=0.3, step_std=0.05,
-                                switch_off_optimization=False):
+                                min_std_procent=0.0, max_std_procent=0.3, step_std=0.05):
 
         close_series = self.data['close']
 
-        if symbol_list is None:
+        if symbol_list == 'all':
             symbol_list = close_series.columns.tolist()
 
         optimal_symbols = {}
@@ -81,7 +86,7 @@ class SymbolAnalyzer:
                 min_std_procent, max_std_procent, step_std
             )
 
-            if symbol != 'BTCUSDT' and not switch_off_optimization:
+            if symbol != 'BTCUSDT':
                 if (max_procent_found == max_procent and
                     min_last_days_found == min_last_days and
                     max_std_procent_found == max_std_procent):
@@ -122,9 +127,15 @@ class SymbolAnalyzer:
 
         return optimal
 
-    def analyze(self, last_days=180, optimal_symbols=None):
+    def analyze(self, last_days=180, optimal_symbols='all'):
 
         analised_symbols = {}
+        if isinstance(optimal_symbols, list):
+            optimal_symbols = {symbol: {} for symbol in optimal_symbols}
+
+        if optimal_symbols == 'all':
+            optimal_symbols = {symbol: {} for symbol in self.data['close'].columns.tolist()}
+
         for symbol in tqdm(optimal_symbols.keys(), desc='Analyzing'):
 
             high_series = self.data['high'][symbol].iloc[-last_days:]
@@ -188,9 +199,9 @@ class SymbolAnalyzer:
                 'max_historical': max_historical,
                 'mean_100': mean_100,
                 'mean_30': mean_30,
-                'max_procent': optimal_symbols[symbol]['max_procent'],
-                'min_last_days': optimal_symbols[symbol]['min_last_days'],
-                'max_std_procent': optimal_symbols[symbol]['max_std_procent']
+                'max_procent': optimal_symbols[symbol].get('max_procent', np.nan),
+                'min_last_days': optimal_symbols[symbol].get('min_last_days', np.nan),
+                'max_std_procent': optimal_symbols[symbol].get('max_std_procent', np.nan)
             }
 
         return analised_symbols
