@@ -1,8 +1,3 @@
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-
-
 def kadane_subarray(open_series, window=100):
     rolling_mean = open_series.rolling(window=window, min_periods=1).mean()
     rolling_mean = rolling_mean * 1.1
