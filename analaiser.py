@@ -7,7 +7,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 import ta
-from prophet import Prophet
+
+from utils.kadane import kadane_subarray
+from utils.changepoints import detect_top_changepoints
 
 
 class SymbolAnalyzer:
@@ -365,31 +367,8 @@ class SymbolAnalyzer:
         self.bullish_pattern =  hammer[-3:] + engulfing[-2:] + star[-1:]
 
         return votes_up, votes_down, votes_neutral
-
-    def _kadane_subarray(self, series, window=100):
-        rolling_mean = series.rolling(window=window, min_periods=1).mean()
-        rolling_mean = rolling_mean * 1.1
-
-        arr = series.values - rolling_mean.values
-
-        max_sum = current_sum = arr[0]
-        start = end = temp_start = 0
-
-        for i in range(1, len(arr)):
-            if arr[i] > current_sum + arr[i]:
-                current_sum = arr[i]
-                temp_start = i
-            else:
-                current_sum += arr[i]
-
-            if current_sum >= max_sum:
-                max_sum = current_sum
-                start = temp_start
-                end = i
-
-        return series.index[start], series.index[end]
     
-    def _detect_top3_changepoints(self, series, changepoint_n=3):
+
         series.index = pd.to_datetime(series.index)
         df = pd.DataFrame({
             "ds": series.index,
@@ -577,7 +556,7 @@ class SymbolAnalyzer:
             ax.fill_between(vol_scaled.index, vol_scaled, color='gray', alpha=0.3, label='Volume')
 
             # ==== Визначення та відображення max sum підмасиву ====
-            start_idx, end_idx = self._kadane_subarray(series)
+            start_idx, end_idx = kadane_subarray(series)
             ax.axvline(start_idx, color='blue', linestyle='--', linewidth=1.5, label='Bull Start')
             ax.axvline(end_idx, color='red', linestyle='--', linewidth=1.5, label='Bull End')
 
@@ -585,7 +564,7 @@ class SymbolAnalyzer:
             kadane_coef = last_price / kadane_avg if end_idx == series.index[-1] else 0.0
 
             # ==== Визначення та відображення топ-3 точок зміни тренду ====
-            top3_cps = self._detect_top3_changepoints(series, changepoint_n=3)
+            top3_cps = detect_top_changepoints(series, changepoint_n=3)
             for cp in top3_cps:
                 ax.axhline(cp, color='orange', linestyle='--', linewidth=1.0)
 
