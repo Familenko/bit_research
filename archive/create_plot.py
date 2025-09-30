@@ -37,8 +37,8 @@ def paint_result(df,
 
     global_norm = pd.DataFrame()
     for symbol in result:
-        series = df[symbol].iloc[-last_days:]
-        norm_series = (series - series.min()) / (series.max() - series.min())
+        open_series = df[symbol].iloc[-last_days:]
+        norm_series = (open_series - open_series.min()) / (open_series.max() - open_series.min())
         global_norm[symbol] = norm_series
     global_line = global_norm.mean(axis=1)
 
@@ -47,7 +47,7 @@ def paint_result(df,
         df_rsi[symbol] = ta.momentum.RSIIndicator(close=df[symbol], window=30).rsi()
 
     for idx, symbol in enumerate(result):
-        series = df[symbol].iloc[-last_days:]
+        open_series = df[symbol].iloc[-last_days:]
         volume_series = volume_df[symbol].iloc[-last_days:]
         ax = axes[idx]
 
@@ -67,15 +67,15 @@ def paint_result(df,
         ax_vol.tick_params(axis='y', colors='gray')
         ax_vol.legend(loc='upper right', fontsize=8)
 
-        # ==== RSI Series ====
+        # ==== RSI open_series ====
         rsi_series = df_rsi[symbol].iloc[-last_days:]
         last_rsi = rsi_series.dropna().iloc[-1]
 
         # ==== Графік ціни ====
-        series.plot(ax=ax, label='Price', color='gray', linewidth=1.5)
+        open_series.plot(ax=ax, label='Price', color='gray', linewidth=1.5)
 
         # ==== Глобальна лінія ====
-        global_scaled = global_line * (series.max() - series.min()) + series.min()
+        global_scaled = global_line * (open_series.max() - open_series.min()) + open_series.min()
         global_scaled.plot(ax=ax, label='Global Mean', color='black', linestyle='--', linewidth=0.5)
 
         # ==== 200-денна ковзна ====
@@ -122,7 +122,7 @@ def paint_result(df,
 
         ax.axhline(last_price, color='green', linestyle='--',
                    label=f"Last Price ({last_price:.2f})")
-        ax.text(series.index[-1], last_price, f' {last_price:.2f}', 
+        ax.text(open_series.index[-1], last_price, f' {last_price:.2f}', 
                 verticalalignment='bottom', color='green', fontsize=10)
         
         ax.axhline(min_support_100, color='gray', linestyle='dotted',
@@ -147,8 +147,8 @@ def paint_result(df,
         vol_max_idx_100 = volume_series[-100:].idxmax()
         vol_mean_100 = volume_series[-100:].mean()
         if volume_series[vol_max_idx_100] > vol_mean_100 * 2:
-            price_at_vol_max_100 = series.loc[vol_max_idx_100]
-            pos_100 = series.index.get_loc(vol_max_idx_100)
+            price_at_vol_max_100 = open_series.loc[vol_max_idx_100]
+            pos_100 = open_series.index.get_loc(vol_max_idx_100)
 
             ax.text(pos_100, price_at_vol_max_100, f' {price_at_vol_max_100:.2f}', 
                     verticalalignment='bottom', color='red', fontsize=10)
@@ -157,16 +157,16 @@ def paint_result(df,
         vol_max_idx_30 = volume_series[-30:].idxmax()
         vol_mean_30 = volume_series[-30:].mean()
         if volume_series[vol_max_idx_30] > vol_mean_30 * 2:
-            price_at_vol_max_30 = series.loc[vol_max_idx_30]
-            pos_30 = series.index.get_loc(vol_max_idx_30)
+            price_at_vol_max_30 = open_series.loc[vol_max_idx_30]
+            pos_30 = open_series.index.get_loc(vol_max_idx_30)
 
             ax.text(pos_30, price_at_vol_max_30, f' {price_at_vol_max_30:.2f}', 
                     verticalalignment='bottom', color='red', fontsize=10)
 
         # ==== Лінії часу ====
-        if len(series) >= 100:
-            pos_30 = len(series) - 30
-            pos_100 = len(series) - 100
+        if len(open_series) >= 100:
+            pos_30 = len(open_series) - 30
+            pos_100 = len(open_series) - 100
             
             ax.axvline(pos_30, color='gray', linestyle=':', label='30 Days Ago')
             ax.axvline(pos_100, color='gray', linestyle=':', label='100 Days Ago')
@@ -182,10 +182,10 @@ def paint_result(df,
         open_series = df_open[symbol].iloc[-last_days:]
         high_series = df_max[symbol].iloc[-last_days:]
         low_series = df_min[symbol].iloc[-last_days:]
-        close_series = series
+        close_series = open_series
 
         # Візьмемо останні 100 днів для голосування патернів
-        last_100_dates = series.index[-100:]
+        last_100_dates = open_series.index[-100:]
 
         # Голосування за напрямок: рахунок "вгору" і "вниз"
         votes_up = 0.0
@@ -339,7 +339,7 @@ def paint_result(df,
         ax.set_title(f"{symbol} ({symbol_cap:.2f}B USD) | Profit: {profit_pct:.2f}% SL: {SL:.2f} TP: {TP:.2f} | "
                      f"RSI: {last_rsi:.1f} ATR: {last_atr:.2f} | Trend: {direction} Signal: {signal_text}", fontsize=14)
         
-        collect_predict[symbol] = pd.Series({
+        collect_predict[symbol] = pd.open_series({
             'cap': float(symbol_cap),
             f'{TODAY}': last_price,
             'profit_pct': float(profit_pct),
@@ -373,10 +373,10 @@ def paint_all(df, symbols, last_days=365):
     data = df[symbols].iloc[-last_days:].copy()
 
     for symbol in symbols:
-        series = data[symbol]
-        min_val = series.min()
-        max_val = series.max()
-        data[symbol] = (series - min_val) / (max_val - min_val)
+        open_series = data[symbol]
+        min_val = open_series.min()
+        max_val = open_series.max()
+        data[symbol] = (open_series - min_val) / (max_val - min_val)
 
     plt.figure(figsize=(16,8))
     x = range(len(data))

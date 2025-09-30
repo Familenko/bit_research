@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 from prophet import Prophet
 
 
-def detect_top_changepoints(series, changepoint_n=3):
-    series.index = pd.to_datetime(series.index)
-    df = pd.DataFrame({"ds": series.index, "y": series.values})
+def detect_top_changepoints(open_series, changepoint_n=3):
+    open_series.index = pd.to_datetime(open_series.index)
+    df = pd.DataFrame({"ds": open_series.index, "y": open_series.values})
 
     m = Prophet()
     m.fit(df)
@@ -24,10 +24,10 @@ def detect_top_changepoints(series, changepoint_n=3):
 
     results = []
     for _, row in top3.iterrows():
-        mask = series.index >= row["date"]
+        mask = open_series.index >= row["date"]
         if not mask.any():
             continue
-        closest_idx = series.index[mask][0]
-        results.append(series.iloc[series.index.get_loc(closest_idx)])
+        closest_idx = open_series.index[mask][0]
+        results.append(open_series.iloc[open_series.index.get_loc(closest_idx)])
 
     return results

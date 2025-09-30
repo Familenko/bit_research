@@ -10,6 +10,8 @@ import ta
 
 from utils.kadane import kadane_subarray
 from utils.changepoints import detect_top_changepoints
+from utils.adx import adx_metric
+from utils.interes import interes_metric
 
 
 class SymbolAnalyzer:
@@ -369,10 +371,10 @@ class SymbolAnalyzer:
         return votes_up, votes_down, votes_neutral
     
 
-        series.index = pd.to_datetime(series.index)
+        open_series.index = pd.to_datetime(open_series.index)
         df = pd.DataFrame({
-            "ds": series.index,
-            "y": series.values
+            "ds": open_series.index,
+            "y": open_series.values
         })
 
         m = Prophet()
@@ -394,11 +396,11 @@ class SymbolAnalyzer:
 
         results = []
         for _, row in top3.iterrows():
-            mask = series.index >= row["date"]
+            mask = open_series.index >= row["date"]
             if not mask.any():
                 continue
-            closest_idx = series.index[mask][0]
-            results.append(series.iloc[series.index.get_loc(closest_idx)])
+            closest_idx = open_series.index[mask][0]
+            results.append(open_series.iloc[open_series.index.get_loc(closest_idx)])
 
         return results
 
@@ -414,40 +416,30 @@ class SymbolAnalyzer:
         # ==== Глобальна лінія ====
         global_norm = pd.DataFrame()
         for symbol in self.result_df['symbol']:
-            series = self.data['close'][symbol].iloc[-last_days:]
-            norm_series = (series - series.min()) / (series.max() - series.min())
+            open_series = self.data['close'][symbol].iloc[-last_days:]
+            norm_series = (open_series - open_series.min()) / (open_series.max() - open_series.min())
             global_norm[symbol] = norm_series
         global_line = global_norm.mean(axis=1)
 
         # ==== ПОЧАТОК ЦИКЛУ ПО СИМВОЛАМ ====
         for idx, symbol in enumerate(self.result_df['symbol']):
-            series = self.data['close'][symbol].iloc[-last_days:]
+            open_series = self.data['close'][symbol].iloc[-last_days:]
+            high_series = self.data['high'][symbol].iloc[-last_days:]
+            low_series = self.data['low'][symbol].iloc[-last_days:]
+            close_series = self.data['close'][symbol].iloc[-last_days:]
+            volume_series = self.data['volume'][symbol].iloc[-last_days:]
 
-            if len(series) < last_days:
+            if len(open_series) < last_days:
                 continue
 
-            volume_series = self.data['volume'][symbol].iloc[-last_days:]
             ax = axes[idx]
 
             # ==== ADX ====
-            high = self.data['high'][symbol].iloc[-last_days:]
-            low = self.data['low'][symbol].iloc[-last_days:]
-            close = self.data['close'][symbol].iloc[-last_days:]
-
-            adx_indicator = ta.trend.ADXIndicator(high=high, low=low, close=close, window=14)
-            adx_val = adx_indicator.adx().iloc[-1]
-            plus_di_val = adx_indicator.adx_pos().iloc[-1]
-            minus_di_val = adx_indicator.adx_neg().iloc[-1]
+            adx_val, plus_di_val, minus_di_val = adx_metric(high_series, low_series, close_series)
 
             # ==== Графік інтересу ====
             cum_vol = volume_series.cumsum()
-            cum_vol_norm = (cum_vol - cum_vol.min()) / (cum_vol.max() - cum_vol.min())
-            time_norm = np.linspace(0, 1, len(cum_vol_norm))
-            ideal_line = time_norm
-            diff = cum_vol_norm.values - ideal_line
-            interes = np.trapezoid(diff, time_norm) * -1
-            if interes is None or np.isnan(interes):
-                interes = 0.0
+            interes = interes_metric(volume_series)
 
             ax_vol = ax.twinx()
             cum_vol.plot(ax=ax_vol, color='gray', linestyle='-', linewidth=0.5, label=f'Cumulative Volume ({interes:.2f})')
@@ -456,10 +448,10 @@ class SymbolAnalyzer:
             ax_vol.legend(loc='upper right', fontsize=8)
 
             # ==== Графік ціни ====
-            series.plot(ax=ax, label='Price', color='gray', linewidth=1.5)
+            open_series.plot(ax=ax, label='Price', color='gray', linewidth=1.5)
 
             # ==== Глобальна лінія ====
-            global_scaled = global_line * (series.max() - series.min()) + series.min()
+            global_scaled = global_line * (open_series.max() - open_series.min()) + open_series.min()
             global_scaled.plot(ax=ax, label='Global Mean', color='black', linestyle='--', linewidth=0.5)
 
             # ==== 200-денна ковзна ====
@@ -496,7 +488,7 @@ class SymbolAnalyzer:
             ax.axhspan(max_resist_30, max_resist_100, color='red', alpha=0.1)
 
             ax.axhline(last_price, color='green', linestyle='--', label=f"Last Price ({last_price:.2f})")
-            ax.text(series.index[-1], last_price, f' {last_price:.2f}', verticalalignment='bottom', color='green', fontsize=10)
+            ax.text(open_series.index[-1], last_price, f' {last_price:.2f}', verticalalignment='bottom', color='green', fontsize=10)
             
             ax.axhline(min_support_100, color='gray', linestyle='dotted', label=f"Min Support 100 ({min_support_100:.2f})")
             ax.axhline(min_support_30, color='orange', linestyle='--', label=f"Min Support 30 ({min_support_30:.2f})")
@@ -514,8 +506,8 @@ class SymbolAnalyzer:
             vol_max_idx_100 = volume_series[-100:].idxmax()
             vol_mean_100 = volume_series[-100:].mean()
             if volume_series[vol_max_idx_100] > vol_mean_100 * 2:
-                price_at_vol_max_100 = series.loc[vol_max_idx_100]
-                pos_100 = series.index.get_loc(vol_max_idx_100)
+                price_at_vol_max_100 = open_series.loc[vol_max_idx_100]
+                pos_100 = open_series.index.get_loc(vol_max_idx_100)
 
                 ax.text(pos_100, price_at_vol_max_100, f' {price_at_vol_max_100:.2f}', 
                         verticalalignment='bottom', color='red', fontsize=10)
@@ -524,17 +516,17 @@ class SymbolAnalyzer:
             vol_max_idx_30 = volume_series[-30:].idxmax()
             vol_mean_30 = volume_series[-30:].mean()
             if volume_series[vol_max_idx_30] > vol_mean_30 * 2:
-                price_at_vol_max_30 = series.loc[vol_max_idx_30]
-                pos_30 = series.index.get_loc(vol_max_idx_30)
+                price_at_vol_max_30 = open_series.loc[vol_max_idx_30]
+                pos_30 = open_series.index.get_loc(vol_max_idx_30)
 
                 ax.text(pos_30, price_at_vol_max_30, f' {price_at_vol_max_30:.2f}', 
                         verticalalignment='bottom', color='red', fontsize=10)
 
             # ==== Лінії часу ====
-            if len(series) >= 100:
-                pos_7 = len(series) - 7
-                pos_30 = len(series) - 30
-                pos_100 = len(series) - 100
+            if len(open_series) >= 100:
+                pos_7 = len(open_series) - 7
+                pos_30 = len(open_series) - 30
+                pos_100 = len(open_series) - 100
                 
                 ax.axvline(pos_7, color='gray', linestyle=':', label='7 Days Ago')
                 ax.axvline(pos_30, color='gray', linestyle=':', label='30 Days Ago')
@@ -556,15 +548,15 @@ class SymbolAnalyzer:
             ax.fill_between(vol_scaled.index, vol_scaled, color='gray', alpha=0.3, label='Volume')
 
             # ==== Визначення та відображення max sum підмасиву ====
-            start_idx, end_idx = kadane_subarray(series)
+            start_idx, end_idx = kadane_subarray(open_series)
             ax.axvline(start_idx, color='blue', linestyle='--', linewidth=1.5, label='Bull Start')
             ax.axvline(end_idx, color='red', linestyle='--', linewidth=1.5, label='Bull End')
 
-            kadane_avg = series.loc[start_idx:end_idx].mean()
-            kadane_coef = last_price / kadane_avg if end_idx == series.index[-1] else 0.0
+            kadane_avg = open_series.loc[start_idx:end_idx].mean()
+            kadane_coef = last_price / kadane_avg if end_idx == open_series.index[-1] else 0.0
 
             # ==== Визначення та відображення топ-3 точок зміни тренду ====
-            top3_cps = detect_top_changepoints(series, changepoint_n=3)
+            top3_cps = detect_top_changepoints(open_series, changepoint_n=3)
             for cp in top3_cps:
                 ax.axhline(cp, color='orange', linestyle='--', linewidth=1.0)
 

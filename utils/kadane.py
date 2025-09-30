@@ -3,11 +3,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def kadane_subarray(series, window=100):
-    rolling_mean = series.rolling(window=window, min_periods=1).mean()
+def kadane_subarray(open_series, window=100):
+    rolling_mean = open_series.rolling(window=window, min_periods=1).mean()
     rolling_mean = rolling_mean * 1.1
 
-    arr = series.values - rolling_mean.values
+    arr = open_series.values - rolling_mean.values
 
     max_sum = current_sum = arr[0]
     start = end = temp_start = 0
@@ -24,4 +24,4 @@ def kadane_subarray(series, window=100):
             start = temp_start
             end = i
 
-    return series.index[start], series.index[end]
+    return open_series.index[start], open_series.index[end]
