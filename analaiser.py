@@ -44,7 +44,8 @@ class SymbolAnalyzer:
             'date', 'symbol', 'last_price', 'direction', 'signal_text', 'cap', 'SL', 'TP',
             'interes', 'last_rsi', 'last_atr', 'max_procent', 'min_last_days', 'max_std_procent',
             'min_support_100', 'max_resist_100', 'min_support_30', 'max_resist_30', 'min_historical', 'max_historical', 'mean_100', 'mean_30',
-            'votes_up', 'votes_down', 'total_votes'
+            'votes_up', 'votes_down', 'total_votes',
+            'patterns'
         ]
         result_df = result_df[[col for col in desired_order if col in result_df.columns]]
 
@@ -135,6 +136,7 @@ class SymbolAnalyzer:
 
         for symbol in tqdm(optimal_symbols.keys(), desc='Analyzing'):
 
+            open_series = self.data['open'][symbol].iloc[-last_days:]
             high_series = self.data['high'][symbol].iloc[-last_days:]
             low_series = self.data['low'][symbol].iloc[-last_days:]
             close_series = self.data['close'][symbol].iloc[-last_days:]
@@ -150,7 +152,9 @@ class SymbolAnalyzer:
             SL = last_price - last_atr * 3
             TP = last_price * 1.2
 
-            votes_up, votes_down, votes_neutral = self._candle_votes(symbol, last_days)
+            votes_up, votes_down, votes_neutral, patterns = self._candle_votes(
+                open_series, high_series, low_series, close_series, volume_series
+            )
             total_votes = int(abs(votes_up - votes_down) - votes_neutral + (interes * 100))
 
             ma100 = self.data['close'][symbol].rolling(window=100).mean().iloc[-last_days:]
@@ -198,7 +202,8 @@ class SymbolAnalyzer:
                 'mean_30': mean_30,
                 'max_procent': optimal_symbols[symbol].get('max_procent', np.nan),
                 'min_last_days': optimal_symbols[symbol].get('min_last_days', np.nan),
-                'max_std_procent': optimal_symbols[symbol].get('max_std_procent', np.nan)
+                'max_std_procent': optimal_symbols[symbol].get('max_std_procent', np.nan),
+                'patterns': patterns,
             }
 
         return analised_symbols
@@ -234,17 +239,10 @@ class SymbolAnalyzer:
             return "SELL"
         return "HOLD"
 
-    def _candle_votes(self, symbol, last_days, ax=None):
-        # ==== CANDLE PATTERNS ====
-        open_series = self.data['open'][symbol].iloc[-last_days:]
-        high_series = self.data['high'][symbol].iloc[-last_days:]
-        low_series = self.data['low'][symbol].iloc[-last_days:]
-        close_series = self.data['close'][symbol].iloc[-last_days:]
-        volume_series = self.data['volume'][symbol].iloc[-last_days:]
-
+    def _candle_votes(self, open_series, high_series, low_series, close_series, volume_series):
         # Візьмемо останні 100 днів для голосування патернів
         last_100_dates = close_series.index[-100:]
-        vol_mean_100 = self.data['volume'][symbol].iloc[-100:].mean()
+        vol_mean_100 = volume_series[-100:].mean()
 
         # Голосування за напрямок: рахунок "вгору" і "вниз"
         votes_up = 0.0
@@ -269,21 +267,15 @@ class SymbolAnalyzer:
             # hammer (позитивний сигнал)
             if candle_range > 0 and body < candle_range * 0.3 and lower_shadow > body * 2:
                 votes_up += 1 * vol_weight
-                hammer.append(l)
-                if ax:
-                    ax.scatter(date, l, color='green', s=20, marker='P', label='Hammer' if 'Hammer' not in ax.get_legend_handles_labels()[1] else "")
+                hammer.append((date, l))
 
             # inverted hammer (негативний сигнал)
             if candle_range > 0 and body < candle_range * 0.3 and upper_shadow > body * 2 and lower_shadow < body * 0.5:
                 votes_down += 1 * vol_weight
-                if ax:
-                    ax.scatter(date, h, color='red', s=20, marker='P', label='Inverted Hammer' if 'Inverted Hammer' not in ax.get_legend_handles_labels()[1] else "")
 
             # doji — сумнівний сигнал
             if candle_range > 0 and body < candle_range * 0.1:
                 votes_neutral += 1 * vol_weight
-                if ax:
-                    ax.scatter(date, c, color='orange', s=30, marker='D', label='Doji' if 'Doji' not in ax.get_legend_handles_labels()[1] else "")
 
         # Три-свічкові патерни (Morning Star, Evening Star)
         for i in range(2, len(last_100_dates)):
@@ -312,9 +304,7 @@ class SymbolAnalyzer:
                 c3 > o3 and body3 > (h3 - l3) * 0.5 and
                 c3 > ((c1 + o1)/2)):
                 votes_up += 3 * vol_weight
-                star.append(c3)
-                if ax:
-                    ax.scatter(date, c3, color='green', s=80, marker='*', label='Morning Star' if 'Morning Star' not in ax.get_legend_handles_labels()[1] else "")
+                star.append((date, c3))
 
             # Evening Star — сигнал на падіння
             if (c1 > o1 and body1 > (h1 - l1) * 0.5 and
@@ -322,8 +312,6 @@ class SymbolAnalyzer:
                 c3 < o3 and body3 > (h3 - l3) * 0.5 and
                 c3 < ((c1 + o1)/2)):
                 votes_down += 3 * vol_weight
-                if ax:
-                    ax.scatter(date, c3, color='red', s=80, marker='*', label='Evening Star' if 'Evening Star' not in ax.get_legend_handles_labels()[1] else "")
 
         # Дво-свічкові патерни (Bullish Engulfing, Bearish Engulfing)
         for i in range(1, len(last_100_dates)):
@@ -345,9 +333,7 @@ class SymbolAnalyzer:
                 o_curr < c_prev and
                 c_curr > o_prev):
                 votes_up += 2 * vol_weight
-                engulfing.append(l)
-                if ax:
-                    ax.scatter(date, l, color='green', s=30, marker='^', label='Engulfing Bullish' if 'Engulfing Bullish' not in ax.get_legend_handles_labels()[1] else "")
+                engulfing.append((date, l))
 
             # Bearish Engulfing — вниз
             if (c_prev > o_prev and
@@ -355,46 +341,21 @@ class SymbolAnalyzer:
                 o_curr > c_prev and
                 c_curr < o_prev):
                 votes_down += 2 * vol_weight
-                if ax:
-                    ax.scatter(date, h, color='red', s=30, marker='v', label='Engulfing Bearish' if 'Engulfing Bearish' not in ax.get_legend_handles_labels()[1] else "")
 
-        self.bullish_pattern =  hammer[-3:] + engulfing[-2:] + star[-1:]
+        # Збережемо останні сигнали як "bullish_pattern"
+        self.bullish_pattern = (
+            [s for s in hammer[-3:]] +
+            [s for s in engulfing[-2:]] +
+            [s for s in star[-1:]]
+        )
 
-        return votes_up, votes_down, votes_neutral
-    
+        patterns = {
+            "hammer": hammer,
+            "engulfing": engulfing,
+            "star": star
+        }
 
-        open_series.index = pd.to_datetime(open_series.index)
-        df = pd.DataFrame({
-            "ds": open_series.index,
-            "y": open_series.values
-        })
-
-        m = Prophet()
-        m.fit(df)
-
-        cps = m.changepoints
-        deltas = m.params['delta'].mean(0)
-
-        if len(cps) == 0:
-            return []
-
-        cp_df = pd.DataFrame({
-            "date": cps,
-            "strength": deltas
-        })
-
-        cp_df = cp_df.reindex(cp_df["strength"].abs().sort_values(ascending=False).index)
-        top3 = cp_df.sort_values("date").tail(changepoint_n)
-
-        results = []
-        for _, row in top3.iterrows():
-            mask = open_series.index >= row["date"]
-            if not mask.any():
-                continue
-            closest_idx = open_series.index[mask][0]
-            results.append(open_series.iloc[open_series.index.get_loc(closest_idx)])
-
-        return results
+        return votes_up, votes_down, votes_neutral, patterns
 
     def graph(self, last_days=180, save_pdf=True):
         assert self.result_df is not None, "Спочатку викличте run()"
@@ -415,13 +376,15 @@ class SymbolAnalyzer:
 
         # ==== ПОЧАТОК ЦИКЛУ ПО СИМВОЛАМ ====
         for idx, symbol in enumerate(self.result_df['symbol']):
-            open_series = self.data['close'][symbol].iloc[-last_days:]
+            open_series = self.data['open'][symbol].iloc[-last_days:]
             high_series = self.data['high'][symbol].iloc[-last_days:]
             low_series = self.data['low'][symbol].iloc[-last_days:]
             close_series = self.data['close'][symbol].iloc[-last_days:]
             volume_series = self.data['volume'][symbol].iloc[-last_days:]
 
-            if len(open_series) < last_days:
+            patterns = self.result_df.loc[self.result_df['symbol'] == symbol, 'patterns'].values[0]
+
+            if len(close_series) < last_days:
                 continue
 
             ax = axes[idx]
@@ -553,7 +516,17 @@ class SymbolAnalyzer:
                 ax.axhline(cp, color='orange', linestyle='--', linewidth=1.0)
 
             # ==== CANDLE PATTERNS ====
-            self._candle_votes(symbol, last_days, ax=ax)
+            # hammer
+            for date, value in patterns["hammer"]:
+                ax.scatter(date, value, color='green', s=20, marker='P', label='Hammer' if 'Hammer' not in ax.get_legend_handles_labels()[1] else "")
+
+            # engulfing
+            for date, value in patterns["engulfing"]:
+                ax.scatter(date, value, color='blue', s=30, marker='^', label='Engulfing Bullish' if 'Engulfing Bullish' not in ax.get_legend_handles_labels()[1] else "")
+
+            # star
+            for date, value in patterns["star"]:
+                ax.scatter(date, value, color='orange', s=80, marker='*', label='Morning Star' if 'Morning Star' not in ax.get_legend_handles_labels()[1] else "")
 
             # ==== Заголовок графіка ====
             direction = self.result_df.loc[self.result_df['symbol'] == symbol, 'direction'].values[0]
@@ -570,7 +543,7 @@ class SymbolAnalyzer:
             # entry price
             vibrated_price = last_price - last_atr
             self.bullish_pattern += [ma30.iloc[-1], ma100.iloc[-1], vibrated_price]
-            valid_entry_levels = [p for p in self.bullish_pattern if p < last_price]
+            valid_entry_levels = [p[1] if isinstance(p, tuple) else p for p in self.bullish_pattern if (p[1] if isinstance(p, tuple) else p) < last_price]
             entry_price = max(valid_entry_levels) if valid_entry_levels else -1
 
             buttom_text = f"{symbol} | {signal_text} | SL: {SL:.2f} TP: {TP:.2f} | Entry: {entry_price:.2f}"
