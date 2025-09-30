@@ -390,9 +390,6 @@ class SymbolAnalyzer:
 
             patterns = self.result_df.loc[self.result_df['symbol'] == symbol, 'patterns'].values[0]
 
-            if len(close_series) < last_days:
-                continue
-
             ax = axes[idx]
 
             # ==== ADX ====
@@ -409,7 +406,7 @@ class SymbolAnalyzer:
             ax_vol.legend(loc='upper right', fontsize=8)
 
             # ==== Графік ціни ====
-            open_series.plot(ax=ax, label='Price', color='gray', linewidth=1.5)
+            close_series.plot(ax=ax, label='Price', color='gray', linewidth=2.0)
 
             # ==== Глобальна лінія ====
             global_scaled = global_line * (open_series.max() - open_series.min()) + open_series.min()
@@ -517,7 +514,7 @@ class SymbolAnalyzer:
             kadane_coef = last_price / kadane_avg if end_idx == open_series.index[-1] else 0.0
 
             # ==== Визначення та відображення топ точок зміни тренду ====
-            top3_cps = detect_top_changepoints(open_series, changepoint_n=3)
+            top3_cps = detect_top_changepoints(close_series, changepoint_n=3)
             for cp in top3_cps:
                 ax.axhline(cp, color='orange', linestyle='--', linewidth=1.0)
 
