@@ -249,7 +249,7 @@ class SymbolAnalyzer:
         votes_down = 0.0
         votes_neutral = 0.0
 
-        engulfing, hammer, star = [], [], []
+        engulfing_bearish, engulfing_bullish, hammer_up, hammer_down, morning_star, evening_star = [], [], [], [], [], []
 
         # Одно-свічкові патерни (hammer, inverted hammer, doji)
         for date in last_100_dates:
@@ -267,11 +267,12 @@ class SymbolAnalyzer:
             # hammer (позитивний сигнал)
             if candle_range > 0 and body < candle_range * 0.3 and lower_shadow > body * 2:
                 votes_up += 1 * vol_weight
-                hammer.append((date, l))
+                hammer_up.append((date, h))
 
             # inverted hammer (негативний сигнал)
             if candle_range > 0 and body < candle_range * 0.3 and upper_shadow > body * 2 and lower_shadow < body * 0.5:
                 votes_down += 1 * vol_weight
+                hammer_down.append((date, l))
 
             # doji — сумнівний сигнал
             if candle_range > 0 and body < candle_range * 0.1:
@@ -304,7 +305,7 @@ class SymbolAnalyzer:
                 c3 > o3 and body3 > (h3 - l3) * 0.5 and
                 c3 > ((c1 + o1)/2)):
                 votes_up += 3 * vol_weight
-                star.append((date, c3))
+                morning_star.append((date, l3))
 
             # Evening Star — сигнал на падіння
             if (c1 > o1 and body1 > (h1 - l1) * 0.5 and
@@ -312,6 +313,7 @@ class SymbolAnalyzer:
                 c3 < o3 and body3 > (h3 - l3) * 0.5 and
                 c3 < ((c1 + o1)/2)):
                 votes_down += 3 * vol_weight
+                evening_star.append((date, h3))
 
         # Дво-свічкові патерни (Bullish Engulfing, Bearish Engulfing)
         for i in range(1, len(last_100_dates)):
@@ -333,7 +335,7 @@ class SymbolAnalyzer:
                 o_curr < c_prev and
                 c_curr > o_prev):
                 votes_up += 2 * vol_weight
-                engulfing.append((date, l))
+                engulfing_bullish.append((date, l))
 
             # Bearish Engulfing — вниз
             if (c_prev > o_prev and
@@ -341,18 +343,22 @@ class SymbolAnalyzer:
                 o_curr > c_prev and
                 c_curr < o_prev):
                 votes_down += 2 * vol_weight
+                engulfing_bearish.append((date, h))
 
         # Збережемо останні сигнали як "bullish_pattern"
         self.bullish_pattern = (
-            [s for s in hammer[-3:]] +
-            [s for s in engulfing[-2:]] +
-            [s for s in star[-1:]]
+            [s for s in hammer_up[-3:]] +
+            [s for s in engulfing_bullish[-2:]] +
+            [s for s in morning_star[-1:]]
         )
 
         patterns = {
-            "hammer": hammer,
-            "engulfing": engulfing,
-            "star": star
+            "hammer_up": hammer_up,
+            "engulfing_bullish": engulfing_bullish,
+            "morning_star": morning_star,
+            "hammer_down": hammer_down,
+            "engulfing_bearish": engulfing_bearish,
+            "evening_star": evening_star
         }
 
         return votes_up, votes_down, votes_neutral, patterns
@@ -516,17 +522,18 @@ class SymbolAnalyzer:
                 ax.axhline(cp, color='orange', linestyle='--', linewidth=1.0)
 
             # ==== CANDLE PATTERNS ====
-            # hammer
-            for date, value in patterns["hammer"]:
-                ax.scatter(date, value, color='green', s=20, marker='P', label='Hammer' if 'Hammer' not in ax.get_legend_handles_labels()[1] else "")
-
-            # engulfing
-            for date, value in patterns["engulfing"]:
-                ax.scatter(date, value, color='blue', s=30, marker='^', label='Engulfing Bullish' if 'Engulfing Bullish' not in ax.get_legend_handles_labels()[1] else "")
-
-            # star
-            for date, value in patterns["star"]:
-                ax.scatter(date, value, color='orange', s=80, marker='*', label='Morning Star' if 'Morning Star' not in ax.get_legend_handles_labels()[1] else "")
+            for date, value in patterns["hammer_down"]:
+                ax.scatter(date, value, color='red', s=20, marker='P', label='Hammer Down' if 'Hammer Down' not in ax.get_legend_handles_labels()[1] else "")   
+            for date, value in patterns["engulfing_bearish"]:
+                ax.scatter(date, value, color='red', s=30, marker='v', label='Engulfing Bearish' if 'Engulfing Bearish' not in ax.get_legend_handles_labels()[1] else "")
+            for date, value in patterns["evening_star"]:
+                ax.scatter(date, value, color='red', s=80, marker='*', label='Evening Star' if 'Evening Star' not in ax.get_legend_handles_labels()[1] else "")
+            for date, value in patterns["hammer_up"]:
+                ax.scatter(date, value, color='green', s=20, marker='P', label='Hammer Up' if 'Hammer Up' not in ax.get_legend_handles_labels()[1] else "")
+            for date, value in patterns["engulfing_bullish"]:
+                ax.scatter(date, value, color='green', s=30, marker='^', label='Engulfing Bullish' if 'Engulfing Bullish' not in ax.get_legend_handles_labels()[1] else "")
+            for date, value in patterns["morning_star"]:
+                ax.scatter(date, value, color='green', s=80, marker='*', label='Morning Star' if 'Morning Star' not in ax.get_legend_handles_labels()[1] else "")
 
             # ==== Заголовок графіка ====
             direction = self.result_df.loc[self.result_df['symbol'] == symbol, 'direction'].values[0]
