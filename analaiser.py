@@ -149,8 +149,6 @@ class SymbolAnalyzer:
             last_price = close_series.iloc[-1]
             atr_series = ta.volatility.AverageTrueRange(high=high_series, low=low_series, close=close_series, window=30).average_true_range()
             last_atr = atr_series.iloc[-1]
-            SL = last_price - last_atr * 3
-            TP = last_price * 1.2
 
             votes_up, votes_down, votes_neutral, patterns = self._candle_votes(
                 open_series, high_series, low_series, close_series, volume_series
@@ -166,23 +164,11 @@ class SymbolAnalyzer:
             signal_text = self._generate_signal(votes_up, votes_down, total_votes, ma30, ma100, last_rsi, 
                                                 last_price, max_resist_100, min_support_100, volume_series)
 
-            cap = self.data['capital'][self.data['capital']['symbol'] == symbol]['cap'].values[0] / 1_000_000_000
-
-            min_support_100 = close_series.iloc[-101:-1].min()
-            max_resist_100 = close_series.iloc[-101:-1].max()
-            min_support_30 = close_series.iloc[-31:-1].min()
-            max_resist_30 = close_series.iloc[-31:-1].max()
-            min_historical = close_series.iloc[:-31].min()
-            max_historical = close_series.iloc[:-31].max()
-            last_price = close_series.iloc[-1]
-            mean_100 = close_series.iloc[-101:-1].mean()
-            mean_30 = close_series.iloc[-31:-1].mean()
-
             analised_symbols[symbol] = {
                 'date': self.TODAY,
-                'cap': float(cap),
-                'SL': float(SL),
-                'TP': float(TP),
+                'cap': float(self.data['capital'][self.data['capital']['symbol'] == symbol]['cap'].values[0] / 1_000_000_000),
+                'SL': float(last_price - last_atr * 3),
+                'TP': float(last_price * 1.2),
                 'direction': direction,
                 'votes_up': votes_up,
                 'votes_down': votes_down,
@@ -191,15 +177,15 @@ class SymbolAnalyzer:
                 'last_rsi': last_rsi,
                 'last_atr': last_atr,
                 'interes': interes,
-                'last_price': last_price,
-                'min_support_100': min_support_100,
-                'max_resist_100': max_resist_100,
-                'min_support_30': min_support_30,
-                'max_resist_30': max_resist_30,
-                'min_historical': min_historical,
-                'max_historical': max_historical,
-                'mean_100': mean_100,
-                'mean_30': mean_30,
+                'last_price': close_series.iloc[-1],
+                'min_support_100': close_series.iloc[-101:-1].min(),
+                'max_resist_100': close_series.iloc[-101:-1].max(),
+                'min_support_30': close_series.iloc[-31:-1].min(),
+                'max_resist_30': close_series.iloc[-31:-1].max(),
+                'min_historical': close_series.iloc[:-31].min(),
+                'max_historical': close_series.iloc[:-31].max(),
+                'mean_100': close_series.iloc[-101:-1].mean(),
+                'mean_30': close_series.iloc[-31:-1].mean(),
                 'max_procent': optimal_symbols[symbol].get('max_procent', np.nan),
                 'min_last_days': optimal_symbols[symbol].get('min_last_days', np.nan),
                 'max_std_procent': optimal_symbols[symbol].get('max_std_procent', np.nan),
@@ -345,7 +331,6 @@ class SymbolAnalyzer:
                 votes_down += 2 * vol_weight
                 engulfing_bearish.append((date, h))
 
-        # Збережемо останні сигнали як "bullish_pattern"
         self.bullish_pattern = (
             [s for s in hammer_up[-3:]] +
             [s for s in engulfing_bullish[-2:]] +
