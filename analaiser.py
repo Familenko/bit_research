@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 import ta
+from prophet import Prophet
 
 
 class SymbolAnalyzer:
@@ -387,6 +388,40 @@ class SymbolAnalyzer:
                 end = i
 
         return series.index[start], series.index[end]
+    
+    def _detect_top3_changepoints(self, series, changepoint_n=3):
+        series.index = pd.to_datetime(series.index)
+        df = pd.DataFrame({
+            "ds": series.index,
+            "y": series.values
+        })
+
+        m = Prophet()
+        m.fit(df)
+
+        cps = m.changepoints
+        deltas = m.params['delta'].mean(0)
+
+        if len(cps) == 0:
+            return []
+
+        cp_df = pd.DataFrame({
+            "date": cps,
+            "strength": deltas
+        })
+
+        cp_df = cp_df.reindex(cp_df["strength"].abs().sort_values(ascending=False).index)
+        top3 = cp_df.sort_values("date").tail(changepoint_n)
+
+        results = []
+        for _, row in top3.iterrows():
+            mask = series.index >= row["date"]
+            if not mask.any():
+                continue
+            closest_idx = series.index[mask][0]
+            results.append(series.iloc[series.index.get_loc(closest_idx)])
+
+        return results
 
     def graph(self, last_days=180, save_pdf=True):
         assert self.result_df is not None, "Спочатку викличте run()"
@@ -544,6 +579,11 @@ class SymbolAnalyzer:
 
             kadane_avg = series.loc[start_idx:end_idx].mean()
             kadane_coef = last_price / kadane_avg if end_idx == series.index[-1] else 0.0
+
+            # ==== Визначення та відображення топ-3 точок зміни тренду ====
+            top3_cps = self._detect_top3_changepoints(series, changepoint_n=3)
+            for cp in top3_cps:
+                ax.axhline(cp, color='orange', linestyle='--', linewidth=1.0)
 
             # ==== CANDLE PATTERNS ====
             self._candle_votes(symbol, last_days, ax=ax)
