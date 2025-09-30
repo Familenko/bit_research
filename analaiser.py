@@ -153,7 +153,7 @@ class SymbolAnalyzer:
         for symbol in tqdm(symbol_list, desc='Analyzing'):
 
             volume_series = self.data['volume'][symbol].iloc[-last_days:]
-            interes = self._calculate_interest(volume_series)
+            interes = interes_metric(volume_series)
 
             last_rsi = ta.momentum.RSIIndicator(close=self.data['close'][symbol], window=30).rsi().iloc[-last_days:].iloc[-1]
 
@@ -202,14 +202,6 @@ class SymbolAnalyzer:
             })
 
         return self.cache
-
-    def _calculate_interest(self, volume_series):
-        cum_vol = volume_series.cumsum()
-        cum_vol_norm = (cum_vol - cum_vol.min()) / (cum_vol.max() - cum_vol.min())
-        time_norm = np.linspace(0, 1, len(cum_vol_norm))
-        diff = cum_vol_norm.values - time_norm
-        interes = np.trapezoid(diff, time_norm) * -1
-        return 0.0 if np.isnan(interes) else interes
 
     def _determine_direction(self, votes_up, votes_down, votes_neutral, total_votes):
         scores = f"{total_votes} (U:{votes_up:.1f} D:{votes_down:.1f} N:{votes_neutral:.1f})"
