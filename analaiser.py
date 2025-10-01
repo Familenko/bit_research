@@ -27,8 +27,6 @@ class SymbolAnalyzer:
         self.data['high'] = df.pivot(index='timestamp', columns='symbol', values='high')
         self.data['low'] = df.pivot(index='timestamp', columns='symbol', values='low')
 
-        self.bullish_pattern = []
-
         self.result_df = None
 
     def _forming_result_df(self, analised_symbols):
@@ -331,12 +329,6 @@ class SymbolAnalyzer:
                 votes_down += 2 * vol_weight
                 engulfing_bearish.append((date, h))
 
-        self.bullish_pattern = (
-            [s for s in hammer_up[-3:]] +
-            [s for s in engulfing_bullish[-2:]] +
-            [s for s in morning_star[-1:]]
-        )
-
         patterns = {
             "hammer_up": hammer_up,
             "engulfing_bullish": engulfing_bullish,
@@ -531,8 +523,15 @@ class SymbolAnalyzer:
 
             # entry price
             vibrated_price = last_price - last_atr
-            self.bullish_pattern += [ma30.iloc[-1], ma100.iloc[-1], vibrated_price]
-            valid_entry_levels = [p[1] if isinstance(p, tuple) else p for p in self.bullish_pattern if (p[1] if isinstance(p, tuple) else p) < last_price]
+
+            bullish_pattern = (
+                [s for s in patterns["hammer_up"][-3:]] +
+                [s for s in patterns["engulfing_bullish"][-2:]] +
+                [s for s in patterns["morning_star"][-1:]]
+            )
+            bullish_pattern += [ma30.iloc[-1], ma100.iloc[-1], vibrated_price]
+
+            valid_entry_levels = [p[1] if isinstance(p, tuple) else p for p in bullish_pattern if (p[1] if isinstance(p, tuple) else p) < last_price]
             entry_price = max(valid_entry_levels) if valid_entry_levels else -1
 
             buttom_text = f"{symbol} | {signal_text} | SL: {SL:.2f} TP: {TP:.2f} | Entry: {entry_price:.2f}"
