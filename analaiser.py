@@ -37,17 +37,19 @@ class SymbolAnalyzer:
         result_df.rename(columns={'index': 'symbol'}, inplace=True)
         result_df = result_df[~result_df['symbol'].isin(self.ignore_symbols)]
         result_df = result_df.sort_values(
-            ['total_votes', 'cap', 'max_procent', 'min_last_days', 'max_std_procent'],
-            ascending=[False, False, True, False, False])
+            ['total_votes', 'cap', 'max_procent', 'min_last_days', 'max_std_procent', 'adx'],
+            ascending=[False, False, True, False, False, True])
         
-        # desired_order = [
-        #     'date', 'symbol', 'last_price', 'direction', 'signal_text', 'cap', 'SL', 'TP',
-        #     'interes', 'last_rsi', 'last_atr', 'max_procent', 'min_last_days', 'max_std_procent',
-        #     'min_support_100', 'max_resist_100', 'min_support_30', 'max_resist_30', 'min_historical', 'max_historical', 'mean_100', 'mean_30',
-        #     'votes_up', 'votes_down', 'total_votes',
-        #     'patterns'
-        # ]
-        # result_df = result_df[[col for col in desired_order if col in result_df.columns]]
+        desired_order = [
+            'date', 'symbol', 'last_price', 'direction', 'signal_text', 'cap', 'SL', 'TP',
+            'adx', 'plus_di', 'minus_di', 'interes',
+            'last_rsi', 'last_atr',
+            'max_procent', 'min_last_days', 'max_std_procent',
+            'min_support_100', 'max_resist_100', 'min_support_30', 'max_resist_30', 'min_historical', 'max_historical', 'mean_100', 'mean_30',
+            'votes_up', 'votes_down', 'total_votes',
+            'patterns'
+        ]
+        result_df = result_df[[col for col in desired_order if col in result_df.columns]]
 
         return result_df
 
