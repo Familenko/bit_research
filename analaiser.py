@@ -261,12 +261,12 @@ class SymbolAnalyzer:
             # hammer (позитивний сигнал)
             if candle_range > 0 and body < candle_range * 0.3 and lower_shadow > body * 2:
                 votes_up += 1 * vol_weight
-                hammer_up.append((date, h))
+                hammer_up.append((date, l))
 
             # inverted hammer (негативний сигнал)
             if candle_range > 0 and body < candle_range * 0.3 and upper_shadow > body * 2 and lower_shadow < body * 0.5:
                 votes_down += 1 * vol_weight
-                hammer_down.append((date, l))
+                hammer_down.append((date, h))
 
             # doji — сумнівний сигнал
             if candle_range > 0 and body < candle_range * 0.1:
