@@ -2,9 +2,9 @@ import pandas as pd
 from prophet import Prophet
 
 
-def detect_top_changepoints(open_series, changepoint_n=3):
-    open_series.index = pd.to_datetime(open_series.index)
-    df = pd.DataFrame({"ds": open_series.index, "y": open_series.values})
+def detect_top_changepoints(close_series, changepoint_n=3):
+    close_series.index = pd.to_datetime(close_series.index)
+    df = pd.DataFrame({"ds": close_series.index, "y": close_series.values})
 
     m = Prophet()
     m.fit(df)
@@ -22,10 +22,10 @@ def detect_top_changepoints(open_series, changepoint_n=3):
 
     results = []
     for _, row in top3.iterrows():
-        mask = open_series.index >= row["date"]
+        mask = close_series.index >= row["date"]
         if not mask.any():
             continue
-        closest_idx = open_series.index[mask][0]
-        results.append(open_series.iloc[open_series.index.get_loc(closest_idx)])
+        closest_idx = close_series.index[mask][0]
+        results.append(close_series.iloc[close_series.index.get_loc(closest_idx)])
 
     return results

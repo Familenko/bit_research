@@ -366,16 +366,13 @@ class SymbolAnalyzer:
         # ==== Глобальна лінія ====
         global_norm = pd.DataFrame()
         for symbol in self.result_df['symbol']:
-            open_series = self.data['close'][symbol].iloc[-last_days:]
-            norm_series = (open_series - open_series.min()) / (open_series.max() - open_series.min())
+            close_series = self.data['close'][symbol].iloc[-last_days:]
+            norm_series = (close_series - close_series.min()) / (close_series.max() - close_series.min())
             global_norm[symbol] = norm_series
         global_line = global_norm.mean(axis=1)
 
         # ==== ПОЧАТОК ЦИКЛУ ПО СИМВОЛАМ ====
         for idx, symbol in enumerate(self.result_df['symbol']):
-            open_series = self.data['open'][symbol].iloc[-last_days:]
-            high_series = self.data['high'][symbol].iloc[-last_days:]
-            low_series = self.data['low'][symbol].iloc[-last_days:]
             close_series = self.data['close'][symbol].iloc[-last_days:]
             volume_series = self.data['volume'][symbol].iloc[-last_days:]
 
@@ -402,7 +399,7 @@ class SymbolAnalyzer:
             close_series.plot(ax=ax, label='Price', color='gray', linewidth=2.0)
 
             # ==== Глобальна лінія ====
-            global_scaled = global_line * (open_series.max() - open_series.min()) + open_series.min()
+            global_scaled = global_line * (close_series.max() - close_series.min()) + close_series.min()
             global_scaled.plot(ax=ax, label='Global Mean', color='black', linestyle='--', linewidth=0.5)
 
             # ==== 200-денна ковзна ====
@@ -439,7 +436,7 @@ class SymbolAnalyzer:
             ax.axhspan(max_resist_30, max_resist_100, color='red', alpha=0.1)
 
             ax.axhline(last_price, color='green', linestyle='--', label=f"Last Price ({last_price:.2f})")
-            ax.text(open_series.index[-1], last_price, f' {last_price:.2f}', verticalalignment='bottom', color='green', fontsize=10)
+            ax.text(close_series.index[-1], last_price, f' {last_price:.2f}', verticalalignment='bottom', color='green', fontsize=10)
             
             ax.axhline(min_support_100, color='gray', linestyle='dotted', label=f"Min Support 100 ({min_support_100:.2f})")
             ax.axhline(min_support_30, color='orange', linestyle='--', label=f"Min Support 30 ({min_support_30:.2f})")
@@ -457,8 +454,8 @@ class SymbolAnalyzer:
             vol_max_idx_100 = volume_series[-100:].idxmax()
             vol_mean_100 = volume_series[-100:].mean()
             if volume_series[vol_max_idx_100] > vol_mean_100 * 2:
-                price_at_vol_max_100 = open_series.loc[vol_max_idx_100]
-                pos_100 = open_series.index.get_loc(vol_max_idx_100)
+                price_at_vol_max_100 = close_series.loc[vol_max_idx_100]
+                pos_100 = close_series.index.get_loc(vol_max_idx_100)
 
                 ax.text(pos_100, price_at_vol_max_100, f' {price_at_vol_max_100:.2f}', 
                         verticalalignment='bottom', color='red', fontsize=10)
@@ -467,17 +464,17 @@ class SymbolAnalyzer:
             vol_max_idx_30 = volume_series[-30:].idxmax()
             vol_mean_30 = volume_series[-30:].mean()
             if volume_series[vol_max_idx_30] > vol_mean_30 * 2:
-                price_at_vol_max_30 = open_series.loc[vol_max_idx_30]
-                pos_30 = open_series.index.get_loc(vol_max_idx_30)
+                price_at_vol_max_30 = close_series.loc[vol_max_idx_30]
+                pos_30 = close_series.index.get_loc(vol_max_idx_30)
 
                 ax.text(pos_30, price_at_vol_max_30, f' {price_at_vol_max_30:.2f}', 
                         verticalalignment='bottom', color='red', fontsize=10)
 
             # ==== Лінії часу ====
-            if len(open_series) >= 100:
-                pos_7 = len(open_series) - 7
-                pos_30 = len(open_series) - 30
-                pos_100 = len(open_series) - 100
+            if len(close_series) >= 100:
+                pos_7 = len(close_series) - 7
+                pos_30 = len(close_series) - 30
+                pos_100 = len(close_series) - 100
                 
                 ax.axvline(pos_7, color='gray', linestyle=':', label='7 Days Ago')
                 ax.axvline(pos_30, color='gray', linestyle=':', label='30 Days Ago')
