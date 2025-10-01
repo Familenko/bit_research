@@ -53,7 +53,7 @@ class SymbolAnalyzer:
 
     def run(self, **kwargs):
         optimal_symbols = self.find_optimal_token(
-            symbol_list=kwargs.get('symbol_list', 'all'),
+            symbol_list=kwargs.get('symbol_list', None),
             optimisation=kwargs.get('optimisation', True)
         )
         analised_symbols = self.analyze(optimal_symbols)
@@ -62,14 +62,14 @@ class SymbolAnalyzer:
     
         return self.result_df
 
-    def find_optimal_token(self, symbol_list='all', optimisation=True,
+    def find_optimal_token(self, symbol_list=None, optimisation=True,
                                 min_last_days=60, max_last_days=180, step_day=10,
                                 min_procent=0.0, max_procent=0.5, step_procent=0.05,
                                 min_std_procent=0.0, max_std_procent=0.3, step_std=0.05):
 
         close_series = self.data['close']
 
-        if symbol_list == 'all':
+        if not symbol_list:
             symbol_list = close_series.columns.tolist()
 
         optimal_symbols = {}
