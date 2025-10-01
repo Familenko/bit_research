@@ -47,7 +47,7 @@ class SymbolAnalyzer:
             'max_procent', 'min_last_days', 'max_std_procent',
             'min_support_100', 'max_resist_100', 'min_support_30', 'max_resist_30', 'min_historical', 'max_historical', 'mean_100', 'mean_30',
             'votes_up', 'votes_down', 'total_votes',
-            'patterns'
+            'patterns', 'kadane_coef', 'kadane_start', 'kadane_end'
         ]
         result_df = result_df[[col for col in desired_order if col in result_df.columns]]
 
@@ -161,6 +161,8 @@ class SymbolAnalyzer:
             
             direction = self._determine_direction(votes_up, votes_down, 
                                                   votes_neutral, total_votes)
+            
+            kadane_start, kadane_end, kadane_coef = kadane_subarray(close_series)
 
             analised_symbols[symbol] = {
                 'date': self.TODAY,
@@ -191,6 +193,9 @@ class SymbolAnalyzer:
                 'min_last_days': optimal_symbols[symbol].get('min_last_days', np.nan),
                 'max_std_procent': optimal_symbols[symbol].get('max_std_procent', np.nan),
                 'patterns': patterns,
+                'kadane_coef': kadane_coef,
+                'kadane_start': kadane_start,
+                'kadane_end': kadane_end
             }
 
         return analised_symbols
@@ -492,15 +497,14 @@ class SymbolAnalyzer:
             ax.fill_between(vol_scaled.index, vol_scaled, color='gray', alpha=0.3, label='Volume')
 
             # ==== Визначення та відображення Bullrun підмасиву ====
-            start_idx, end_idx = kadane_subarray(open_series)
-            ax.axvline(start_idx, color='blue', linestyle='--', linewidth=1.5, label='Bull Start')
-            ax.axvline(end_idx, color='red', linestyle='--', linewidth=1.5, label='Bull End')
-
-            kadane_avg = open_series.loc[start_idx:end_idx].mean()
-            kadane_coef = last_price / kadane_avg if end_idx == open_series.index[-1] else 0.0
+            kadane_start = self.result_df.loc[self.result_df['symbol'] == symbol, 'kadane_start'].values[0]
+            kadane_end = self.result_df.loc[self.result_df['symbol'] == symbol, 'kadane_end'].values[0]
+            kadane_coef = self.result_df.loc[self.result_df['symbol'] == symbol, 'kadane_coef'].values[0]
+            ax.axvline(kadane_start, color='blue', linestyle='--', linewidth=1.5, label='Bull Start')
+            ax.axvline(kadane_end, color='red', linestyle='--', linewidth=1.5, label='Bull End')
 
             # ==== Визначення та відображення топ точок зміни тренду ====
-            top3_cps = detect_top_changepoints(close_series, changepoint_n=3)
+            top3_cps = detect_top_changepoints(close_series, changepoint_n=5)
             for cp in top3_cps:
                 ax.axhline(cp, color='orange', linestyle='--', linewidth=1.0)
 
