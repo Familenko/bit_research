@@ -52,10 +52,10 @@ class SymbolAnalyzer:
         return result_df
 
     def run(self, **kwargs):
-        optimal_symbols = self.find_optimal_token(
-            symbol_list=kwargs.get('symbol_list', None),
-            optimisation=kwargs.get('optimisation', True)
-        )
+
+        optimal_symbols = self.find_optimal_token(symbol_list=kwargs.get('symbol_list', None),
+                                                  optimisation=kwargs.get('optimisation', True))
+        
         analised_symbols = self.analyze(optimal_symbols)
 
         self.result_df = self._forming_result_df(analised_symbols)
@@ -133,11 +133,7 @@ class SymbolAnalyzer:
             low_series = self.data['low'][symbol].iloc[-last_days:]
             close_series = self.data['close'][symbol].iloc[-last_days:]
             volume_series = self.data['volume'][symbol].iloc[-last_days:]
-
-            try:
-                cap = float(self.data['capital'][self.data['capital']['symbol'] == symbol]['cap'].values[0] / 1_000_000_000)
-            except:
-                cap = float(1)
+            cap = float(self.data['capital'][self.data['capital']['symbol'] == symbol]['cap'].values[0] / 1_000_000_000)
 
             last_price = close_series.iloc[-1]
             min_support_100 = close_series.iloc[-101:-1].min()
@@ -148,8 +144,6 @@ class SymbolAnalyzer:
             max_historical = close_series.iloc[:-31].max()
             mean_100 = close_series.iloc[-101:-1].mean()
             mean_30 = close_series.iloc[-31:-1].mean()
-            ma100 = close_series.rolling(window=100).mean()
-            ma30 = close_series.rolling(window=30).mean()
 
             interes = interes_metric(volume_series)
             last_rsi = rsi_metric(close_series)
@@ -160,7 +154,7 @@ class SymbolAnalyzer:
                                                                                             volume_series, interes)
 
             signal_text = self._generate_signal(votes_up, votes_down, total_votes, last_rsi, volume_series,
-                                                ma30, ma100, max_resist_100, min_support_100, last_price)
+                                                mean_30, mean_100, max_resist_100, min_support_100, last_price)
             
             direction = self._determine_direction(votes_up, votes_down, 
                                                   votes_neutral, total_votes)
@@ -205,18 +199,18 @@ class SymbolAnalyzer:
             return f"➡️{scores}"
 
     def _generate_signal(self, votes_up, votes_down, total_votes, last_rsi, volume_series,
-                         ma30, ma100, max_resist_100, min_support_100, last_price):
+                         mean_30, mean_100, max_resist_100, min_support_100, last_price):
 
         entry_signal = (
             votes_up > votes_down and total_votes > 0 and
-            ma30.iloc[-1] > ma100.iloc[-1] and
+            mean_30 > mean_100 and
             last_rsi < 70 and
             last_price < max_resist_100 * 1.25 and
             volume_series[-7:].mean() > volume_series[-30:].mean()
         )
         exit_signal = (
             votes_down > votes_up and total_votes > 0 and
-            ma30.iloc[-1] < ma100.iloc[-1] and
+            mean_30 < mean_100 and
             last_rsi > 30 and
             last_price > min_support_100 * 0.75 and
             volume_series[-7:].mean() > volume_series[-30:].mean()
