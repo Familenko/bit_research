@@ -243,7 +243,7 @@ class SymbolAnalyzer:
         votes_down = 0.0
         votes_neutral = 0.0
 
-        engulfing_bearish, engulfing_bullish, hammer_up, hammer_down, morning_star, evening_star = [], [], [], [], [], []
+        engulfing_bearish, engulfing_bullish, hammer_up, hammer_down, morning_star, evening_star, doji = [], [], [], [], [], [], []
 
         # Одно-свічкові патерни (hammer, inverted hammer, doji)
         for date in last_100_dates:
@@ -271,6 +271,7 @@ class SymbolAnalyzer:
             # doji — сумнівний сигнал
             if candle_range > 0 and body < candle_range * 0.1:
                 votes_neutral += 1 * vol_weight
+                doji.append((date, c))
 
         # Три-свічкові патерни (Morning Star, Evening Star)
         for i in range(2, len(last_100_dates)):
@@ -345,7 +346,8 @@ class SymbolAnalyzer:
             "morning_star": morning_star,
             "hammer_down": hammer_down,
             "engulfing_bearish": engulfing_bearish,
-            "evening_star": evening_star
+            "evening_star": evening_star,
+            "doji": doji
         }
 
         total_votes = int(abs(votes_up - votes_down) - votes_neutral + (interes * 100))
@@ -521,6 +523,8 @@ class SymbolAnalyzer:
                 ax.scatter(date, value, color='green', s=30, marker='^', label='Engulfing Bullish' if 'Engulfing Bullish' not in ax.get_legend_handles_labels()[1] else "")
             for date, value in patterns["morning_star"]:
                 ax.scatter(date, value, color='green', s=80, marker='*', label='Morning Star' if 'Morning Star' not in ax.get_legend_handles_labels()[1] else "")
+            for date, value in patterns["doji"]:
+                ax.scatter(date, value, color='orange', s=30, marker='D', label='Doji' if 'Doji' not in ax.get_legend_handles_labels()[1] else "")
 
             # ==== Заголовок графіка ====
             direction = self.result_df.loc[self.result_df['symbol'] == symbol, 'direction'].values[0]
