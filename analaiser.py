@@ -54,17 +54,15 @@ class SymbolAnalyzer:
     def run(self, **kwargs):
         optimal_symbols = self.find_optimal_token(
             symbol_list=kwargs.get('symbol_list', 'all'),
+            optimisation=kwargs.get('optimisation', True)
         )
-        analised_symbols = self.analyze(
-            optimal_symbols=kwargs.get('symbol_list', optimal_symbols), 
-            last_days=kwargs.get('last_days', 180)
-            )
+        analised_symbols = self.analyze(optimal_symbols)
 
         self.result_df = self._forming_result_df(analised_symbols)
     
         return self.result_df
 
-    def find_optimal_token(self, symbol_list='all',
+    def find_optimal_token(self, symbol_list='all', optimisation=True,
                                 min_last_days=60, max_last_days=180, step_day=10,
                                 min_procent=0.0, max_procent=0.5, step_procent=0.05,
                                 min_std_procent=0.0, max_std_procent=0.3, step_std=0.05):
@@ -84,7 +82,7 @@ class SymbolAnalyzer:
                 min_std_procent, max_std_procent, step_std
             )
 
-            if symbol != 'BTCUSDT':
+            if optimisation:
                 if (max_procent_found == max_procent and
                     min_last_days_found == min_last_days and
                     max_std_procent_found == max_std_procent):
@@ -125,13 +123,7 @@ class SymbolAnalyzer:
 
         return optimal
 
-    def analyze(self, last_days=180, optimal_symbols='all'):
-
-        if isinstance(optimal_symbols, list):
-            optimal_symbols = {symbol: {} for symbol in optimal_symbols}
-
-        if optimal_symbols == 'all':
-            optimal_symbols = {symbol: {} for symbol in self.data['close'].columns.tolist()}
+    def analyze(self, optimal_symbols, last_days=180):
 
         analised_symbols = {}
         for symbol in tqdm(optimal_symbols.keys(), desc='Analyzing'):
