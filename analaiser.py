@@ -40,29 +40,29 @@ class SymbolAnalyzer:
             ['total_votes', 'cap', 'max_procent', 'min_last_days', 'max_std_procent'],
             ascending=[False, False, True, False, False])
         
-        desired_order = [
-            'date', 'symbol', 'last_price', 'direction', 'signal_text', 'cap', 'SL', 'TP',
-            'interes', 'last_rsi', 'last_atr', 'max_procent', 'min_last_days', 'max_std_procent',
-            'min_support_100', 'max_resist_100', 'min_support_30', 'max_resist_30', 'min_historical', 'max_historical', 'mean_100', 'mean_30',
-            'votes_up', 'votes_down', 'total_votes',
-            'patterns'
-        ]
-        result_df = result_df[[col for col in desired_order if col in result_df.columns]]
+        # desired_order = [
+        #     'date', 'symbol', 'last_price', 'direction', 'signal_text', 'cap', 'SL', 'TP',
+        #     'interes', 'last_rsi', 'last_atr', 'max_procent', 'min_last_days', 'max_std_procent',
+        #     'min_support_100', 'max_resist_100', 'min_support_30', 'max_resist_30', 'min_historical', 'max_historical', 'mean_100', 'mean_30',
+        #     'votes_up', 'votes_down', 'total_votes',
+        #     'patterns'
+        # ]
+        # result_df = result_df[[col for col in desired_order if col in result_df.columns]]
 
         return result_df
 
     def run(self, **kwargs):
 
-        optimal_symbols = self.find_optimal_token(symbol_list=kwargs.get('symbol_list', None),
+        optimal_symbols = self._find_optimal_token(symbol_list=kwargs.get('symbol_list', None),
                                                   optimisation=kwargs.get('optimisation', True))
         
-        analised_symbols = self.analyze(optimal_symbols)
+        analised_symbols = self._analyze(optimal_symbols)
 
         self.result_df = self._forming_result_df(analised_symbols)
     
         return self.result_df
 
-    def find_optimal_token(self, symbol_list=None, optimisation=True,
+    def _find_optimal_token(self, symbol_list=None, optimisation=True,
                                 min_last_days=60, max_last_days=180, step_day=10,
                                 min_procent=0.0, max_procent=0.5, step_procent=0.05,
                                 min_std_procent=0.0, max_std_procent=0.3, step_std=0.05):
@@ -123,7 +123,7 @@ class SymbolAnalyzer:
 
         return optimal
 
-    def analyze(self, optimal_symbols, last_days=180):
+    def _analyze(self, optimal_symbols, last_days=180):
 
         analised_symbols = {}
         for symbol in tqdm(optimal_symbols.keys(), desc='Analyzing'):
@@ -148,6 +148,7 @@ class SymbolAnalyzer:
             interes = interes_metric(volume_series)
             last_rsi = rsi_metric(close_series)
             last_atr = atr_metric(high_series, low_series, close_series)
+            adx_val, plus_di_val, minus_di_val = adx_metric(high_series, low_series, close_series)
 
             votes_up, votes_down, votes_neutral, total_votes, patterns = self._candle_votes(open_series, high_series, 
                                                                                             low_series, close_series, 
@@ -171,6 +172,9 @@ class SymbolAnalyzer:
                 'signal_text': signal_text,
                 'last_rsi': last_rsi,
                 'last_atr': last_atr,
+                'adx': adx_val,
+                'plus_di': plus_di_val,
+                'minus_di': minus_di_val,
                 'interes': interes,
                 'last_price': last_price,
                 'min_support_100': min_support_100,
@@ -371,11 +375,13 @@ class SymbolAnalyzer:
             ax = axes[idx]
 
             # ==== ADX ====
-            adx_val, plus_di_val, minus_di_val = adx_metric(high_series, low_series, close_series)
+            adx_val = self.result_df.loc[self.result_df['symbol'] == symbol, 'adx'].values[0]
+            plus_di_val = self.result_df.loc[self.result_df['symbol'] == symbol, 'plus_di'].values[0]
+            minus_di_val = self.result_df.loc[self.result_df['symbol'] == symbol, 'minus_di'].values[0]
 
             # ==== Графік інтересу ====
             cum_vol = volume_series.cumsum()
-            interes = interes_metric(volume_series)
+            interes = self.result_df.loc[self.result_df['symbol'] == symbol, 'interes'].values[0]
 
             ax_vol = ax.twinx()
             cum_vol.plot(ax=ax_vol, color='gray', linestyle='-', linewidth=0.5, label=f'Cumulative Volume ({interes:.2f})')
