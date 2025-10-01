@@ -8,10 +8,12 @@ from tqdm import tqdm
 
 import ta
 
+from utils.atr import atr_metric
 from utils.kadane import kadane_subarray
 from utils.changepoints import detect_top_changepoints
 from utils.adx import adx_metric
 from utils.interes import interes_metric
+from utils.rsi import rsi_metric
 
 
 class SymbolAnalyzer:
@@ -125,13 +127,13 @@ class SymbolAnalyzer:
 
     def analyze(self, last_days=180, optimal_symbols='all'):
 
-        analised_symbols = {}
         if isinstance(optimal_symbols, list):
             optimal_symbols = {symbol: {} for symbol in optimal_symbols}
 
         if optimal_symbols == 'all':
             optimal_symbols = {symbol: {} for symbol in self.data['close'].columns.tolist()}
 
+        analised_symbols = {}
         for symbol in tqdm(optimal_symbols.keys(), desc='Analyzing'):
 
             open_series = self.data['open'][symbol].iloc[-last_days:]
@@ -140,31 +142,40 @@ class SymbolAnalyzer:
             close_series = self.data['close'][symbol].iloc[-last_days:]
             volume_series = self.data['volume'][symbol].iloc[-last_days:]
 
-            interes = interes_metric(volume_series)
-
-            last_rsi = ta.momentum.RSIIndicator(close=close_series, window=30).rsi().iloc[-1]
+            try:
+                cap = float(self.data['capital'][self.data['capital']['symbol'] == symbol]['cap'].values[0] / 1_000_000_000)
+            except:
+                cap = float(1)
 
             last_price = close_series.iloc[-1]
-            atr_series = ta.volatility.AverageTrueRange(high=high_series, low=low_series, close=close_series, window=30).average_true_range()
-            last_atr = atr_series.iloc[-1]
+            min_support_100 = close_series.iloc[-101:-1].min()
+            max_resist_100 = close_series.iloc[-101:-1].max()
+            min_support_30 = close_series.iloc[-31:-1].min()
+            max_resist_30 = close_series.iloc[-31:-1].max()
+            min_historical = close_series.iloc[:-31].min()
+            max_historical = close_series.iloc[:-31].max()
+            mean_100 = close_series.iloc[-101:-1].mean()
+            mean_30 = close_series.iloc[-31:-1].mean()
+            ma100 = close_series.rolling(window=100).mean()
+            ma30 = close_series.rolling(window=30).mean()
 
-            votes_up, votes_down, votes_neutral, patterns = self._candle_votes(
-                open_series, high_series, low_series, close_series, volume_series
-            )
-            total_votes = int(abs(votes_up - votes_down) - votes_neutral + (interes * 100))
+            interes = interes_metric(volume_series)
+            last_rsi = rsi_metric(close_series)
+            last_atr = atr_metric(high_series, low_series, close_series)
 
-            ma100 = self.data['close'][symbol].rolling(window=100).mean().iloc[-last_days:]
-            ma30 = self.data['close'][symbol].rolling(window=30).mean().iloc[-last_days:]
-            max_resist_100 = self.data['close'][symbol].iloc[-101:-1].max()
-            min_support_100 = self.data['close'][symbol].iloc[-101:-1].min()
+            votes_up, votes_down, votes_neutral, total_votes, patterns = self._candle_votes(open_series, high_series, 
+                                                                                            low_series, close_series, 
+                                                                                            volume_series, interes)
 
-            direction = self._determine_direction(votes_up, votes_down, votes_neutral, total_votes)
-            signal_text = self._generate_signal(votes_up, votes_down, total_votes, ma30, ma100, last_rsi, 
-                                                last_price, max_resist_100, min_support_100, volume_series)
+            signal_text = self._generate_signal(votes_up, votes_down, total_votes, last_rsi, volume_series,
+                                                ma30, ma100, max_resist_100, min_support_100, last_price)
+            
+            direction = self._determine_direction(votes_up, votes_down, 
+                                                  votes_neutral, total_votes)
 
             analised_symbols[symbol] = {
                 'date': self.TODAY,
-                'cap': float(self.data['capital'][self.data['capital']['symbol'] == symbol]['cap'].values[0] / 1_000_000_000),
+                'cap': cap,
                 'SL': float(last_price - last_atr * 3),
                 'TP': float(last_price * 1.2),
                 'direction': direction,
@@ -175,15 +186,15 @@ class SymbolAnalyzer:
                 'last_rsi': last_rsi,
                 'last_atr': last_atr,
                 'interes': interes,
-                'last_price': close_series.iloc[-1],
-                'min_support_100': close_series.iloc[-101:-1].min(),
-                'max_resist_100': close_series.iloc[-101:-1].max(),
-                'min_support_30': close_series.iloc[-31:-1].min(),
-                'max_resist_30': close_series.iloc[-31:-1].max(),
-                'min_historical': close_series.iloc[:-31].min(),
-                'max_historical': close_series.iloc[:-31].max(),
-                'mean_100': close_series.iloc[-101:-1].mean(),
-                'mean_30': close_series.iloc[-31:-1].mean(),
+                'last_price': last_price,
+                'min_support_100': min_support_100,
+                'max_resist_100': max_resist_100,
+                'min_support_30': min_support_30,
+                'max_resist_30': max_resist_30,
+                'min_historical': min_historical,
+                'max_historical': max_historical,
+                'mean_100': mean_100,
+                'mean_30': mean_30,
                 'max_procent': optimal_symbols[symbol].get('max_procent', np.nan),
                 'min_last_days': optimal_symbols[symbol].get('min_last_days', np.nan),
                 'max_std_procent': optimal_symbols[symbol].get('max_std_procent', np.nan),
@@ -201,7 +212,9 @@ class SymbolAnalyzer:
         else:
             return f"➡️{scores}"
 
-    def _generate_signal(self, votes_up, votes_down, total_votes, ma30, ma100, last_rsi, last_price, max_resist_100, min_support_100, volume_series):
+    def _generate_signal(self, votes_up, votes_down, total_votes, last_rsi, volume_series,
+                         ma30, ma100, max_resist_100, min_support_100, last_price):
+
         entry_signal = (
             votes_up > votes_down and total_votes > 0 and
             ma30.iloc[-1] > ma100.iloc[-1] and
@@ -223,7 +236,7 @@ class SymbolAnalyzer:
             return "SELL"
         return "HOLD"
 
-    def _candle_votes(self, open_series, high_series, low_series, close_series, volume_series):
+    def _candle_votes(self, open_series, high_series, low_series, close_series, volume_series, interes):
         # Візьмемо останні 100 днів для голосування патернів
         last_100_dates = close_series.index[-100:]
         vol_mean_100 = volume_series[-100:].mean()
@@ -338,7 +351,9 @@ class SymbolAnalyzer:
             "evening_star": evening_star
         }
 
-        return votes_up, votes_down, votes_neutral, patterns
+        total_votes = int(abs(votes_up - votes_down) - votes_neutral + (interes * 100))
+
+        return votes_up, votes_down, votes_neutral, total_votes, patterns
 
     def graph(self, last_days=180, save_pdf=True):
         assert self.result_df is not None, "Спочатку викличте run()"
