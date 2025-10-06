@@ -19,7 +19,7 @@ from utils.rsi import rsi_metric
 class SymbolAnalyzer:
     def __init__(self, df, cap_df):
         self.TODAY = date.today().strftime('%Y-%m-%d')
-        self.ignore_symbols = ['USDCUSDT', 'FDUSDUSDT', 'USD1USDT']
+        self.ignore_symbols = ['USDCUSDT', 'FDUSDUSDT', 'USD1USDT', 'KSMUSDT']
 
         self.data = {}
         self.data['capital'] = cap_df
@@ -135,7 +135,11 @@ class SymbolAnalyzer:
             low_series = self.data['low'][symbol].iloc[-last_days:]
             close_series = self.data['close'][symbol].iloc[-last_days:]
             volume_series = self.data['volume'][symbol].iloc[-last_days:]
-            cap = float(self.data['capital'][self.data['capital']['symbol'] == symbol]['cap'].values[0] / 1_000_000_000)
+
+            try:
+                cap = float(self.data['capital'][self.data['capital']['symbol'] == symbol]['cap'].values[0] / 1_000_000_000)
+            except:
+                cap = 0.0
 
             last_price = close_series.iloc[-1]
             min_support_100 = close_series.iloc[-101:-1].min()
@@ -401,6 +405,13 @@ class SymbolAnalyzer:
             # ==== Глобальна лінія ====
             global_scaled = global_line * (close_series.max() - close_series.min()) + close_series.min()
             global_scaled.plot(ax=ax, label='Global Mean', color='black', linestyle='--', linewidth=0.5)
+
+            # ==== KSMUSDT ====
+            if symbol == 'DOTUSDT':
+                ksm_series = self.data['close']['KSMUSDT'].iloc[-last_days:]
+                ksm_scaled = (ksm_series - ksm_series.min()) / (ksm_series.max() - ksm_series.min())
+                ksm_scaled = ksm_scaled * (close_series.max() - close_series.min()) + close_series.min()
+                ksm_scaled.plot(ax=ax, label='KSMUSDT', color='cyan', linestyle='--', linewidth=0.5)
 
             # ==== 200-денна ковзна ====
             ma200_full = self.data['close'][symbol].rolling(window=200).mean()
