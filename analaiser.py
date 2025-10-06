@@ -56,7 +56,7 @@ class SymbolAnalyzer:
     def run(self, **kwargs):
 
         optimal_symbols = self._find_optimal_token(symbol_list=kwargs.get('symbol_list', None),
-                                                  optimisation=kwargs.get('optimisation', True))
+                                                   optimisation=kwargs.get('optimisation', True))
         
         analised_symbols = self._analyze(optimal_symbols)
 
@@ -502,6 +502,12 @@ class SymbolAnalyzer:
             ax.axvline(kadane_start, color='blue', linestyle='--', linewidth=1.5, label='Bull Start')
             ax.axvline(kadane_end, color='red', linestyle='--', linewidth=1.5, label='Bull End')
 
+            # ==== Діапазон для бота ====
+            lower_bot = np.percentile(close_series, 5)
+            upper_bot = np.percentile(close_series, 95)
+            ax.axhline(lower_bot, color='blue', linestyle='-', linewidth=0.5, label='Bot Lower Limit')
+            ax.axhline(upper_bot, color='blue', linestyle='-', linewidth=0.5, label='Bot Upper Limit')
+
             # ==== Визначення та відображення топ точок зміни тренду ====
             top3_cps = detect_top_changepoints(close_series, changepoint_n=5)
             for cp in top3_cps:
@@ -548,7 +554,7 @@ class SymbolAnalyzer:
             valid_entry_levels = [p[1] if isinstance(p, tuple) else p for p in bullish_pattern if (p[1] if isinstance(p, tuple) else p) < last_price]
             entry_price = max(valid_entry_levels) if valid_entry_levels else -1
 
-            buttom_text = f"{symbol} | {signal_text} | SL: {SL:.2f} TP: {TP:.2f} | Entry: {entry_price:.2f}"
+            buttom_text = f"{symbol} | {signal_text} | SL: {SL:.2f} TP: {TP:.2f} | Entry: {entry_price:.2f} Bot: {lower_bot:.2f} - {upper_bot:.2f}"
             color_map = {"BUY": "green", "SELL": "red", "HOLD": "gray"}
             signal_color = color_map.get(signal_text, "black")
             ax.set_xlabel(buttom_text, color=signal_color, fontsize=12)
