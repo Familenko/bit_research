@@ -546,9 +546,14 @@ class SymbolAnalyzer:
             last_rsi = self.result_df.loc[self.result_df['symbol'] == symbol, 'last_rsi'].values[0]
             last_atr = self.result_df.loc[self.result_df['symbol'] == symbol, 'last_atr'].values[0]
 
+            max_days = self.result_df.loc[self.result_df['symbol'] == symbol, 'min_last_days'].values[0]
+            max_procent = self.result_df.loc[self.result_df['symbol'] == symbol, 'max_procent'].values[0] * 100
+            max_std_procent = self.result_df.loc[self.result_df['symbol'] == symbol, 'max_std_procent'].values[0]
+
             ax.set_title(
                 f"| Cap: {symbol_cap:.2f}B USD | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} Kadane: {kadane_coef:.2f} "
-                f"| Trend: {direction} | ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) |",
+                f"| Trend: {direction} | ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) "
+                f"| Optimal: {max_procent:.2f}%, {max_days}d, {max_std_procent:.2f}std |",
                 fontsize=12
             )
 
