@@ -114,7 +114,7 @@ class SymbolAnalyzer:
                 std_n = mean_val * std_procent
 
                 for procent in np.arange(max_procent, min_procent, -step_procent):
-                    min_hist = close_series_symbol.iloc[:-31].min()
+                    min_hist = np.percentile(close_series_symbol.iloc[:-31], 1)
                     min_hist_coeff = min_hist * (procent + 1.0)
 
                     if (df_slice.std() <= std_n and mean_val <= min_hist_coeff and last_price >= min_supp_30):
