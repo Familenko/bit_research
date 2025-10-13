@@ -76,7 +76,11 @@ class SymbolAnalyzer:
 
         optimal_symbols = {}
         for symbol in tqdm(symbol_list, desc='Optimizing'):
-            close_series_symbol = close_series[symbol]
+            try:
+                close_series_symbol = close_series[symbol]
+            except:
+                continue
+            
             max_procent_found, min_last_days_found, max_std_procent_found = self._optimize_symbol(
                 close_series_symbol, 
                 min_last_days, max_last_days, step_day,
