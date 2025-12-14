@@ -599,18 +599,44 @@ class SymbolAnalyzer:
             if np.isnan(tail_alpha):
                 tail_text = "Tail α: n/a"
             elif tail_alpha < 2.0:
-                tail_text = f"Tail α: {tail_alpha:.2f} ⚠️"
+                tail_text = f"Tail α: {tail_alpha:.2f}"
             elif tail_alpha < 2.5:
                 tail_text = f"Tail α: {tail_alpha:.2f}"
             else:
-                tail_text = f"Tail α: {tail_alpha:.2f} ✓"
+                tail_text = f"Tail α: {tail_alpha:.2f}"
 
-            ax.set_title(
-                f"| Cap: {symbol_cap:.2f}B USD | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} Kadane: {kadane_coef:.2f} {tail_text} "
-                f"| Trend: {direction} | ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) "
-                f"| Optimal: {max_procent:.2f}%, {max_days}d, {max_std_procent:.2f}std |",
-                fontsize=12
+            # Генеруємо текстові позначки порогів
+            rsi_zone = "Neutral Price ✓"
+            if last_rsi > 70:
+                rsi_zone = "Overbought ⚠️"
+            elif last_rsi < 30:
+                rsi_zone = "Oversold ⚠️"
+
+            adx_zone = "Weak/Sideways"
+            if adx_val > 25:
+                adx_zone = "Strong Trend"
+            elif adx_val < 20:
+                adx_zone = "Weak/Sideways"
+
+            atr_zone = "Low Volatility ✓" if last_atr < last_price * 0.1 else "High Volatility ⚠️"
+            tail_zone = "So so ✓"
+            if tail_alpha < 2.0:
+                tail_zone = "May Fall ⚠️"
+            elif tail_alpha > 2.5:
+                tail_zone = "Stable ✓"
+
+            title_text = (
+                f"Cap: {symbol_cap:.2f}B USD \n"
+                f"RSI: {last_rsi:.1f} ({rsi_zone}) \n"
+                f"ATR: {last_atr:.2f} ({atr_zone}) \n"
+                f"Kadane: {kadane_coef:.2f} \n"
+                f"{tail_text} ({tail_zone}) \n"
+                f"Support: {direction} \n"
+                f"ADX: {adx_val:.1f} ({adx_zone}) (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) \n"
+                f"Optimal: {max_procent:.2f}%, {max_days}d, {max_std_procent:.2f}std |"
             )
+
+            ax.set_title(title_text, fontsize=12, loc='left')
 
             # entry price
             vibrated_price = last_price - last_atr
