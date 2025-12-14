@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 import ta
+from sklearn.linear_model import LinearRegression
 
 from utils.atr import atr_metric
 from utils.kadane import kadane_subarray
@@ -42,7 +43,7 @@ class SymbolAnalyzer:
         
         desired_order = [
             'date', 'symbol', 'last_price', 'direction', 'signal_text', 'cap', 'SL', 'TP',
-            'adx', 'plus_di', 'minus_di', 'interes',
+            'adx', 'plus_di', 'minus_di', 'interes', 'tail_alpha',
             'last_rsi', 'last_atr',
             'max_procent', 'min_last_days', 'max_std_procent',
             'min_support_100', 'max_resist_100', 'min_support_30', 'max_resist_30', 'min_historical', 'max_historical', 'mean_100', 'mean_30',
@@ -129,6 +130,41 @@ class SymbolAnalyzer:
 
         return optimal
 
+    def _tail_risk_alpha(self, close_series, window=180, q=0.8, min_points=18):
+        """
+        Оцінка степеневого хвоста для негативних лог-доходностей
+        через лінійну регресію в лог-просторі.
+        """
+        prices = close_series.iloc[-window:]
+        log_ret = np.log(prices).diff()
+
+        neg_returns = -log_ret[log_ret < 0].dropna()
+        if len(neg_returns) < min_points:
+            return np.nan
+
+        # Вибираємо хвіст
+        x_min = np.quantile(neg_returns, q)
+        tail = neg_returns[neg_returns >= x_min]
+        if len(tail) < min_points:
+            return np.nan
+
+        # Розрахунок емпіричної функції виживання (1-CDF)
+        sorted_tail = np.sort(tail)
+        n = len(sorted_tail)
+        survival_prob = np.arange(n, 0, -1) / n  # P(X >= x)
+
+        # Лог-простір
+        X = np.log(sorted_tail / x_min).reshape(-1, 1)
+        y = np.log(survival_prob)
+
+        # Лінійна регресія
+        model = LinearRegression(fit_intercept=False)
+        model.fit(X, y)
+        slope = model.coef_[0]
+
+        alpha = -slope  # α = -нахил
+        return float(alpha)
+
     def _analyze(self, optimal_symbols, last_days=180):
 
         analised_symbols = {}
@@ -159,6 +195,7 @@ class SymbolAnalyzer:
             last_rsi = rsi_metric(close_series)
             last_atr = atr_metric(high_series, low_series, close_series)
             adx_val, plus_di_val, minus_di_val = adx_metric(high_series, low_series, close_series)
+            tail_alpha = self._tail_risk_alpha(close_series)
 
             votes_up, votes_down, votes_neutral, total_votes, patterns = self._candle_votes(open_series, high_series, 
                                                                                             low_series, close_series, 
@@ -185,6 +222,7 @@ class SymbolAnalyzer:
                 'last_rsi': last_rsi,
                 'last_atr': last_atr,
                 'adx': adx_val,
+                'tail_alpha': tail_alpha,
                 'plus_di': plus_di_val,
                 'minus_di': minus_di_val,
                 'interes': interes,
@@ -554,8 +592,21 @@ class SymbolAnalyzer:
             max_procent = self.result_df.loc[self.result_df['symbol'] == symbol, 'max_procent'].values[0] * 100
             max_std_procent = self.result_df.loc[self.result_df['symbol'] == symbol, 'max_std_procent'].values[0]
 
+            tail_alpha = self.result_df.loc[
+                self.result_df['symbol'] == symbol, 'tail_alpha'
+            ].values[0]
+
+            if np.isnan(tail_alpha):
+                tail_text = "Tail α: n/a"
+            elif tail_alpha < 2.0:
+                tail_text = f"Tail α: {tail_alpha:.2f} ⚠️"
+            elif tail_alpha < 2.5:
+                tail_text = f"Tail α: {tail_alpha:.2f}"
+            else:
+                tail_text = f"Tail α: {tail_alpha:.2f} ✓"
+
             ax.set_title(
-                f"| Cap: {symbol_cap:.2f}B USD | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} Kadane: {kadane_coef:.2f} "
+                f"| Cap: {symbol_cap:.2f}B USD | RSI: {last_rsi:.1f} ATR: {last_atr:.2f} Kadane: {kadane_coef:.2f} {tail_text} "
                 f"| Trend: {direction} | ADX: {adx_val:.1f} (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) "
                 f"| Optimal: {max_procent:.2f}%, {max_days}d, {max_std_procent:.2f}std |",
                 fontsize=12
