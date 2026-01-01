@@ -629,11 +629,11 @@ class SymbolAnalyzer:
                 f"Cap: {symbol_cap:.2f}B USD \n"
                 f"RSI: {last_rsi:.1f} ({rsi_zone}) \n"
                 f"ATR: {last_atr:.2f} ({atr_zone}) \n"
-                f"Kadane: {kadane_coef:.2f} \n"
                 f"{tail_text} ({tail_zone}) \n"
-                f"Support: {direction} \n"
                 f"ADX: {adx_val:.1f} ({adx_zone}) (+DI: {plus_di_val:.1f}, -DI: {minus_di_val:.1f}) \n"
-                f"Optimal: {max_procent:.2f}%, {max_days}d, {max_std_procent:.2f}std |"
+                f"Support: {direction} \n"
+                f"Kadane: {kadane_coef:.2f} \n"
+                f"Optimal: {max_procent:.2f}%, {max_days}d, {max_std_procent:.2f}std"
             )
 
             ax.set_title(title_text, fontsize=12, loc='left')
