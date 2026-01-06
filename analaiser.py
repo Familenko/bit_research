@@ -38,7 +38,7 @@ class SymbolAnalyzer:
         result_df.rename(columns={'index': 'symbol'}, inplace=True)
         result_df = result_df[~result_df['symbol'].isin(self.ignore_symbols)]
         result_df = result_df.sort_values(
-            ['total_votes', 'cap', 'max_procent', 'min_last_days', 'max_std_procent', 'adx'],
+            ['cap', 'total_votes', 'max_procent', 'min_last_days', 'max_std_procent', 'adx'],
             ascending=[False, False, True, False, False, True])
         
         desired_order = [
